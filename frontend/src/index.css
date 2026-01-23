@@ -1,0 +1,231 @@
+/* ================= RESET ================= */
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  max-width: 100%;
+  overflow-x: hidden;
+  font-family: "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  background: #f7f8fa;
+  color: #1f2933;
+}
+
+/* ================= TYPOGRAPHY ================= */
+h1 {
+  font-size: 28px;
+  font-weight: 600;
+}
+h2 {
+  font-size: 22px;
+  font-weight: 600;
+}
+h3 {
+  font-size: 18px;
+  font-weight: 600;
+}
+p {
+  line-height: 1.6;
+  color: #4b5563;
+}
+
+/* ================= FORM ELEMENTS ================= */
+input, select, textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+button {
+  padding: 10px 16px;
+  font-size: 14px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+/* ================= TABLE ================= */
+.table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ================= BRAND LOGO ================= */
+.brand-logo {
+  position: fixed;
+  top: 24px;
+  left: 40px;
+  z-index: 1000;
+}
+
+.brand-logo img {
+  height: 58px;
+  width: auto;
+}
+
+/* ================= BRAND LAYOUT ================= */
+.brand-page {
+  min-height: 100vh;
+  background: #f7f8fa;
+}
+
+.brand-content {
+  padding: 120px 60px 60px;
+  max-width: 1100px;
+  background: #ffffff;
+}
+
+/* ================= ADMIN LAYOUT ================= */
+.admin-layout {
+  display: flex;
+  min-height: 100vh;
+}
+
+/* ================= ADMIN SIDEBAR ================= */
+.admin-sidebar {
+  width: 260px;
+  padding: 30px;
+  background: #ffffff;
+  border-right: 1px solid #e5e7eb;
+}
+
+.admin-logo {
+  height: 42px;
+  margin-bottom: 30px;
+}
+
+.admin-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.admin-nav a {
+  text-decoration: none;
+  color: #1f2933;
+  font-size: 15px;
+  padding: 8px 0;
+}
+
+.admin-nav a:hover {
+  color: #1f4fd8;
+}
+
+.logout-btn {
+  margin-top: 30px;
+  padding: 10px;
+  background: #1f4fd8;
+  color: #ffffff;
+  border: none;
+  border-radius: 4px;
+}
+
+/* ================= ADMIN CONTENT ================= */
+.admin-content {
+  flex: 1;
+  padding: 40px 50px;
+}
+
+/* ================= MOBILE HEADER ================= */
+.admin-mobile-header {
+  display: none;
+}
+
+.hamburger {
+  font-size: 26px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #1f2933;
+}
+
+/* ================= OVERLAY ================= */
+.admin-overlay {
+  display: none;
+}
+
+/* ================= MOBILE RESPONSIVE ================= */
+@media (max-width: 768px) {
+
+  body {
+    font-size: 14px;
+  }
+
+  h1 { font-size: 22px; }
+  h2 { font-size: 18px; }
+  h3 { font-size: 16px; }
+
+  button {
+    width: 100%;
+    padding: 12px;
+  }
+
+  /* ===== Brand ===== */
+  .brand-logo {
+    top: 16px;
+    left: 16px;
+  }
+
+  .brand-logo img {
+    height: 44px;
+  }
+
+  .brand-content {
+    padding: 100px 20px 40px;
+  }
+
+  /* ===== Admin Mobile Header ===== */
+  .admin-mobile-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 18px;
+    background: #ffffff;
+    border-bottom: 1px solid #e5e7eb;
+    position: sticky;
+    top: 0;
+    z-index: 1200;
+  }
+
+  .admin-mobile-header img {
+    height: 38px;
+  }
+
+  /* ===== Sidebar ===== */
+  .admin-sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    width: 260px;
+    transform: translateX(-100%);
+    transition: transform 0.3s ease;
+    z-index: 1300;
+  }
+
+  .admin-sidebar.open {
+    transform: translateX(0);
+  }
+
+  /* ===== Overlay ===== */
+  .admin-overlay {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.35);
+    z-index: 1250;
+  }
+
+  /* ===== Layout ===== */
+  .admin-layout {
+    flex-direction: column;
+  }
+
+  .admin-content {
+    padding: 20px;
+  }
+}
