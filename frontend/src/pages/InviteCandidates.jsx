@@ -1,6 +1,6 @@
 import { useState } from "react";
 import api from "../services/api";
-
+console.log("INVITATION PAGE — FRONTEND VERSION 24 JAN — LIVE");
 export default function InviteCandidates() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -39,6 +39,10 @@ export default function InviteCandidates() {
 
   return (
     <>
+    <p style={{ color: "red", fontWeight: "bold" }}>
+  FRONTEND UPDATED — INVITATION PAGE — 24 JAN
+</p>
+
       <h2>Invite Candidates</h2>
       <p style={{ marginTop: 6 }}>
         Send aptitude test invitations to candidates via email.

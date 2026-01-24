@@ -140,6 +140,7 @@ export default function Test() {
   /* ================= START SCREEN ================= */
   if (!testStarted) {
     return (
+      
       <div style={page}>
         <div style={card}>
           <h2>Aptitude Test Instructions</h2>
