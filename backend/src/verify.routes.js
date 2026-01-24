@@ -2,10 +2,6 @@ const express = require("express");
 const router = express.Router();
 const pool = require("./db");
 
-/**
- * GET /api/verify
- * Email verification
- */
 router.get("/", async (req, res) => {
   const { token } = req.query;
 
@@ -25,24 +21,12 @@ router.get("/", async (req, res) => {
 
     const invite = inviteRes.rows[0];
 
-    // 🔒 Expired
     if (invite.expires_at && new Date(invite.expires_at) < new Date()) {
       return res.status(410).json({
         message: "Verification link expired",
         expired: true,
       });
     }
-
-    // Already submitted
-    if (invite.status === "SUBMITTED") {
-      return res.json({ message: "Test already submitted" });
-    }
-
-    // Mark verified timestamp only
-    await pool.query(
-      "UPDATE invitations SET verified_at = NOW() WHERE token=$1",
-      [token]
-    );
 
     res.json({ valid: true });
   } catch (err) {

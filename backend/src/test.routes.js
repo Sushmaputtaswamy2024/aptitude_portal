@@ -6,6 +6,7 @@ const pool = require("./db");
 router.get("/start", async (req, res) => {
   try {
     const { token } = req.query;
+
     if (!token) {
       return res.status(400).json({ message: "Token required" });
     }
@@ -21,14 +22,17 @@ router.get("/start", async (req, res) => {
 
     const invite = inviteRes.rows[0];
 
+    // 🔒 Expired link
     if (invite.expires_at && new Date(invite.expires_at) < new Date()) {
       return res.status(410).json({ message: "Test link expired" });
     }
 
+    // 🔒 Already submitted
     if (invite.status === "SUBMITTED") {
       return res.status(403).json({ message: "Test already submitted" });
     }
 
+    // Assign questions only once
     const existing = await pool.query(
       "SELECT 1 FROM test_questions WHERE invitation_id = $1",
       [invite.id]
@@ -73,7 +77,7 @@ router.get("/start", async (req, res) => {
       questions: result.rows,
     });
   } catch (err) {
-    console.error("START TEST ERROR:", err);
+    console.error("❌ START TEST ERROR:", err);
     res.status(500).json({ message: "Server error" });
   }
 });
@@ -98,18 +102,21 @@ router.post("/submit", async (req, res) => {
 
     const invite = inviteRes.rows[0];
 
+    // 🔒 Already submitted
     if (invite.status === "SUBMITTED") {
       return res.status(403).json({ message: "Test already submitted" });
     }
 
+    // 🔒 Expired
     if (invite.expires_at && new Date(invite.expires_at) < new Date()) {
       return res.status(410).json({ message: "Test link expired" });
     }
 
-    /* ================= CATEGORY SCORE LOGIC ================= */
+    /* ================= SCORING LOGIC ================= */
+
     let totalScore = 0;
-    let categoryScore = {};
     let totalQuestions = 0;
+    const categoryScore = {};
 
     const qRes = await pool.query(
       `
@@ -125,7 +132,10 @@ router.post("/submit", async (req, res) => {
       totalQuestions++;
 
       if (!categoryScore[q.category]) {
-        categoryScore[q.category] = { correct: 0, total: 0 };
+        categoryScore[q.category] = {
+          correct: 0,
+          total: 0,
+        };
       }
 
       categoryScore[q.category].total++;
@@ -136,17 +146,22 @@ router.post("/submit", async (req, res) => {
       }
     }
 
-    const percentage = Math.round((totalScore / totalQuestions) * 100);
+    const percentage =
+      totalQuestions > 0
+        ? Math.round((totalScore / totalQuestions) * 100)
+        : 0;
+
+    /* ================= SAVE RESULT ================= */
 
     await pool.query(
       `
       INSERT INTO test_results
-        (invitation_id, answers, score, percentage, category_score)
+        (candidate_id, answers, score, percentage, category_score)
       VALUES
         ($1, $2, $3, $4, $5)
       `,
       [
-        invite.id,
+        invite.candidate_id,               // ✅ MATCHES DB
         JSON.stringify(answers),
         totalScore,
         percentage,
@@ -166,8 +181,11 @@ router.post("/submit", async (req, res) => {
       categoryScore,
     });
   } catch (err) {
-    console.error("SUBMIT TEST ERROR:", err);
-    res.status(500).json({ message: "Server error" });
+    console.error("🔥 SUBMIT TEST ERROR:", err);
+    res.status(500).json({
+      message: "Server error",
+      error: err.message,
+    });
   }
 });
 
