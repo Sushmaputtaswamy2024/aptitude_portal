@@ -6,7 +6,7 @@ const pool = require("./db");
 router.get("/status", async (req, res) => {
   try {
     const result = await pool.query(`
-      SELECT
+      SELECT DISTINCT ON (c.id)
         c.id AS candidate_id,
         c.name,
         c.email,
@@ -14,7 +14,7 @@ router.get("/status", async (req, res) => {
         i.invited_at AS last_updated
       FROM candidates c
       JOIN invitations i ON i.candidate_id = c.id
-      ORDER BY i.invited_at DESC
+      ORDER BY c.id, i.invited_at DESC
     `);
 
     res.json(result.rows);
@@ -43,6 +43,8 @@ router.get("/results/:candidateId", async (req, res) => {
       SELECT score, category_score
       FROM test_results
       WHERE candidate_id=$1
+      ORDER BY submitted_at DESC
+      LIMIT 1
       `,
       [candidateId]
     );

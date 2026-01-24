@@ -2,6 +2,8 @@ const express = require("express");
 const router = express.Router();
 const pool = require("./db");
 
+const TEST_DURATION = 30 * 60; // 30 minutes
+
 /* ================= START TEST ================= */
 router.get("/start", async (req, res) => {
   try {
@@ -11,6 +13,7 @@ router.get("/start", async (req, res) => {
       return res.status(400).json({ message: "Token required" });
     }
 
+    // 1. Fetch invitation
     const inviteRes = await pool.query(
       "SELECT * FROM invitations WHERE token = $1",
       [token]
@@ -22,59 +25,70 @@ router.get("/start", async (req, res) => {
 
     const invite = inviteRes.rows[0];
 
-    // 🔒 Expired link
+    // 2. Expiry check
     if (invite.expires_at && new Date(invite.expires_at) < new Date()) {
       return res.status(410).json({ message: "Test link expired" });
     }
 
-    // 🔒 Already submitted
+    // 3. Already submitted
     if (invite.status === "SUBMITTED") {
       return res.status(403).json({ message: "Test already submitted" });
     }
 
-    // Assign questions only once
-    const existing = await pool.query(
-      "SELECT 1 FROM test_questions WHERE invitation_id = $1",
-      [invite.id]
-    );
+    // 4. Generate question order ONCE per candidate
+    let questionOrder = invite.question_order;
 
-    if (existing.rows.length === 0) {
-      const qs = await pool.query(`
-        SELECT id FROM questions
-        ORDER BY RANDOM()
-        LIMIT 50
-      `);
+    if (!questionOrder || questionOrder.length === 0) {
+      const qIdsRes = await pool.query(
+        "SELECT id FROM questions ORDER BY RANDOM() LIMIT 50"
+      );
 
-      for (const q of qs.rows) {
-        await pool.query(
-          "INSERT INTO test_questions (invitation_id, question_id) VALUES ($1,$2)",
-          [invite.id, q.id]
-        );
-      }
+      questionOrder = qIdsRes.rows.map(q => q.id);
 
       await pool.query(
-        "UPDATE invitations SET status='STARTED', started_at=NOW() WHERE id=$1",
-        [invite.id]
+        `
+        UPDATE invitations
+        SET question_order = $1,
+            status = 'STARTED'
+        WHERE id = $2
+        `,
+        [questionOrder, invite.id]
       );
     }
 
-    const result = await pool.query(
+    // 5. Fetch questions
+    const qData = await pool.query(
       `
-      SELECT
-        q.id,
-        q.question,
-        q.options::json AS options
-      FROM test_questions tq
-      JOIN questions q ON q.id = tq.question_id
-      WHERE tq.invitation_id = $1
-      ORDER BY tq.id
+      SELECT id, question, options
+      FROM questions
+      WHERE id = ANY($1)
       `,
-      [invite.id]
+      [questionOrder]
     );
 
+    // 6. Preserve exact order
+    const questionMap = {};
+    qData.rows.forEach(q => {
+      questionMap[q.id] = q;
+    });
+
+    const questions = questionOrder.map(id => {
+      const q = questionMap[id];
+      return {
+        id: q.id,
+        question: q.question,
+        options: {
+          A: q.options[0],
+          B: q.options[1],
+          C: q.options[2],
+          D: q.options[3],
+        },
+      };
+    });
+
     res.json({
-      duration: 30 * 60,
-      questions: result.rows,
+      duration: TEST_DURATION,
+      questions,
     });
   } catch (err) {
     console.error("❌ START TEST ERROR:", err);
@@ -91,6 +105,7 @@ router.post("/submit", async (req, res) => {
       return res.status(400).json({ message: "Token and answers required" });
     }
 
+    // 1. Fetch invitation
     const inviteRes = await pool.query(
       "SELECT * FROM invitations WHERE token = $1",
       [token]
@@ -102,90 +117,66 @@ router.post("/submit", async (req, res) => {
 
     const invite = inviteRes.rows[0];
 
-    // 🔒 Already submitted
     if (invite.status === "SUBMITTED") {
       return res.status(403).json({ message: "Test already submitted" });
     }
 
-    // 🔒 Expired
-    if (invite.expires_at && new Date(invite.expires_at) < new Date()) {
-      return res.status(410).json({ message: "Test link expired" });
-    }
-
-    /* ================= SCORING LOGIC ================= */
-
-    let totalScore = 0;
-    let totalQuestions = 0;
-    const categoryScore = {};
-
+    // 2. Fetch correct answers
     const qRes = await pool.query(
       `
-      SELECT q.id, q.correct_answer, q.category
-      FROM test_questions tq
-      JOIN questions q ON q.id = tq.question_id
-      WHERE tq.invitation_id = $1
+      SELECT id, correct_answer, category
+      FROM questions
+      WHERE id = ANY($1)
       `,
-      [invite.id]
+      [invite.question_order]
     );
 
-    for (const q of qRes.rows) {
-      totalQuestions++;
+    let score = 0;
+    const categoryScore = {};
 
+    for (const q of qRes.rows) {
       if (!categoryScore[q.category]) {
-        categoryScore[q.category] = {
-          correct: 0,
-          total: 0,
-        };
+        categoryScore[q.category] = { correct: 0, total: 0 };
       }
 
       categoryScore[q.category].total++;
 
-      if (answers[q.id] && answers[q.id] === q.correct_answer) {
-        totalScore++;
+      if (answers[q.id] === q.correct_answer) {
+        score++;
         categoryScore[q.category].correct++;
       }
     }
 
-    const percentage =
-      totalQuestions > 0
-        ? Math.round((totalScore / totalQuestions) * 100)
-        : 0;
-
-    /* ================= SAVE RESULT ================= */
-
+    // 3. Save results
     await pool.query(
       `
       INSERT INTO test_results
-        (candidate_id, answers, score, percentage, category_score)
+        (candidate_id, answers, score, category_score)
       VALUES
-        ($1, $2, $3, $4, $5)
+        ($1, $2::jsonb, $3, $4::jsonb)
       `,
       [
-        invite.candidate_id,               // ✅ MATCHES DB
+        invite.candidate_id,
         JSON.stringify(answers),
-        totalScore,
-        percentage,
+        score,
         JSON.stringify(categoryScore),
       ]
     );
 
+    // 4. Mark invitation submitted
     await pool.query(
-      "UPDATE invitations SET status='SUBMITTED', submitted_at=NOW() WHERE id=$1",
+      "UPDATE invitations SET status='SUBMITTED' WHERE id=$1",
       [invite.id]
     );
 
     res.json({
       message: "Test submitted successfully",
-      score: totalScore,
-      percentage,
+      score,
       categoryScore,
     });
   } catch (err) {
     console.error("🔥 SUBMIT TEST ERROR:", err);
-    res.status(500).json({
-      message: "Server error",
-      error: err.message,
-    });
+    res.status(500).json({ message: "Server error" });
   }
 });
 

@@ -20,8 +20,8 @@ export default function CandidateStatus() {
       </p>
 
       <div style={{ marginTop: 30 }}>
-        {data.map((c, i) => (
-          <div key={i} style={cardStyle}>
+        {data.map((c) => (
+          <div key={c.candidate_id} style={cardStyle}>
             <div style={cardHeader}>
               <strong>{c.name}</strong>
               <StatusBadge status={c.status} />
@@ -61,11 +61,12 @@ export default function CandidateStatus() {
   );
 }
 
-/* ================= COMPONENTS ================= */
+/* ================= STATUS BADGE ================= */
 
 function StatusBadge({ status }) {
   const map = {
     INVITED: { text: "Invited", color: "#6b7280" },
+    VERIFIED: { text: "Email Verified", color: "#2563eb" },
     STARTED: { text: "Test Started", color: "#f59e0b" },
     SUBMITTED: { text: "Test Completed", color: "#2e7d32" },
   };

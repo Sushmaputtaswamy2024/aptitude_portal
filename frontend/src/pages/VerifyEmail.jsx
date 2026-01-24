@@ -17,18 +17,24 @@ export default function VerifyEmail() {
     }
 
     api
-      .get(`/verify?token=${token}`) // ✅ FIXED
+      .get(`/verify?token=${token}`)
       .then(() => {
-        setMessage("Email verified successfully. Redirecting to assessment...");
-        setTimeout(() => navigate(`/test?token=${token}`), 1500);
+        setMessage(
+          "Email verified successfully. Redirecting to the assessment..."
+        );
+
+        // Small delay for better UX
+        setTimeout(() => {
+          navigate(`/test?token=${token}`);
+        }, 1500);
       })
       .catch((err) => {
         if (err.response?.status === 410) {
           setMessage(
-            "This verification link has expired. Please request a new invite."
+            "This verification link has expired. Please request a new invitation."
           );
         } else {
-          setMessage("Verification link is invalid.");
+          setMessage("Verification link is invalid or already used.");
         }
       });
   }, [params, navigate]);

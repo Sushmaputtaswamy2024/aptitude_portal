@@ -15,6 +15,8 @@ export default function Test() {
   const [testStarted, setTestStarted] = useState(false);
 
   const submittedRef = useRef(false);
+  const timerRef = useRef(null);
+
   const MAX_VIOLATIONS = 3;
 
   /* ================= LOAD TEST ================= */
@@ -27,18 +29,18 @@ export default function Test() {
 
     api
       .get(`/test/start?token=${token}`)
-      .then(res => {
+      .then((res) => {
         setQuestions(res.data.questions || []);
         setTimeLeft(res.data.duration || 0);
-        setLoading(false);
       })
-      .catch(err => {
+      .catch(() => {
         alert("Invalid or expired test link.");
         navigate("/");
-      });
+      })
+      .finally(() => setLoading(false));
   }, [token, navigate]);
 
-  /* ================= START TEST (USER ACTION) ================= */
+  /* ================= START TEST ================= */
   const startTest = async () => {
     try {
       await document.documentElement.requestFullscreen();
@@ -54,14 +56,17 @@ export default function Test() {
 
     const onFullscreenChange = () => {
       if (!document.fullscreenElement) {
-        setViolations(v => v + 1);
+        setViolations((v) => v + 1);
         alert("Do not exit fullscreen during the test.");
       }
     };
 
     document.addEventListener("fullscreenchange", onFullscreenChange);
     return () =>
-      document.removeEventListener("fullscreenchange", onFullscreenChange);
+      document.removeEventListener(
+        "fullscreenchange",
+        onFullscreenChange
+      );
   }, [testStarted]);
 
   /* ================= TAB SWITCH VIOLATION ================= */
@@ -69,10 +74,10 @@ export default function Test() {
     if (!testStarted) return;
 
     const onVisibility = () => {
-      if (document.hidden) setViolations(v => v + 1);
+      if (document.hidden) setViolations((v) => v + 1);
     };
 
-    const onBlur = () => setViolations(v => v + 1);
+    const onBlur = () => setViolations((v) => v + 1);
 
     document.addEventListener("visibilitychange", onVisibility);
     window.addEventListener("blur", onBlur);
@@ -87,7 +92,7 @@ export default function Test() {
   useEffect(() => {
     if (!testStarted || violations === 0) return;
 
-    alert(`Warning: ${violations}/${MAX_VIOLATIONS}`);
+    alert(`Warning ${violations}/${MAX_VIOLATIONS}`);
 
     if (violations >= MAX_VIOLATIONS) {
       alert("Test auto-submitted due to violations.");
@@ -97,34 +102,40 @@ export default function Test() {
 
   /* ================= TIMER ================= */
   useEffect(() => {
-    if (!testStarted || timeLeft <= 0) {
-      if (testStarted) handleSubmit();
+    if (!testStarted) return;
+
+    if (timeLeft <= 0) {
+      handleSubmit();
       return;
     }
 
-    const timer = setInterval(() => {
-      setTimeLeft(t => t - 1);
+    timerRef.current = setInterval(() => {
+      setTimeLeft((t) => t - 1);
     }, 1000);
 
-    return () => clearInterval(timer);
-  }, [timeLeft, testStarted]);
+    return () => clearInterval(timerRef.current);
+  }, [testStarted, timeLeft]);
 
   /* ================= SUBMIT ================= */
   const handleSubmit = async () => {
     if (submittedRef.current) return;
     submittedRef.current = true;
 
+    clearInterval(timerRef.current);
+
     try {
       await api.post("/test/submit", { token, answers });
       if (document.fullscreenElement) document.exitFullscreen();
       navigate("/thank-you");
     } catch {
-      alert("Submission failed");
+      alert("Submission failed. Please contact support.");
       submittedRef.current = false;
     }
   };
 
-  if (loading) return <p style={{ padding: 40 }}>Loading test...</p>;
+  if (loading) {
+    return <p style={{ padding: 40 }}>Loading test...</p>;
+  }
 
   /* ================= START SCREEN ================= */
   if (!testStarted) {
@@ -134,9 +145,11 @@ export default function Test() {
           <h2>Aptitude Test Instructions</h2>
           <ul>
             <li>Fullscreen is mandatory</li>
-            <li>No tab switching</li>
-            <li>Max 3 warnings</li>
+            <li>Do not switch tabs or windows</li>
+            <li>Maximum 3 warnings allowed</li>
+            <li>Test will auto-submit when time ends</li>
           </ul>
+
           <button onClick={startTest} style={submitBtn}>
             Start Test
           </button>
@@ -171,7 +184,7 @@ export default function Test() {
                   ...(answers[q.id] === key ? optionSelected : {}),
                 }}
                 onClick={() =>
-                  setAnswers(prev => ({ ...prev, [q.id]: key }))
+                  setAnswers((prev) => ({ ...prev, [q.id]: key }))
                 }
               >
                 <b>{key}.</b> {value}
@@ -199,7 +212,7 @@ const page = {
 const card = {
   maxWidth: 900,
   margin: "0 auto",
-  background: "#fff",
+  background: "#ffffff",
   padding: 32,
   borderRadius: 16,
   boxShadow: "0 10px 30px rgba(0,0,0,0.08)",
@@ -214,7 +227,7 @@ const header = {
 
 const timer = {
   background: "#1f4fd8",
-  color: "#fff",
+  color: "#ffffff",
   padding: "10px 18px",
   borderRadius: 20,
   fontWeight: 600,
@@ -248,7 +261,7 @@ const submitBtn = {
   width: "100%",
   padding: 14,
   background: "#1f4fd8",
-  color: "#fff",
+  color: "#ffffff",
   border: "none",
   borderRadius: 10,
   fontWeight: 600,

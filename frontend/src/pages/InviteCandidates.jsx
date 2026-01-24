@@ -11,20 +11,27 @@ export default function InviteCandidates() {
     e.preventDefault();
     setMessage("");
 
-    if (!name || !email) {
+    if (!name.trim() || !email.trim()) {
       setMessage("Please enter candidate name and email.");
       return;
     }
 
     try {
       setLoading(true);
-      await api.post("/invitations", { name, email });
+
+      await api.post("/invitations", {
+        name: name.trim(),
+        email: email.trim(),
+      });
 
       setMessage(`Invitation sent successfully to ${email}`);
       setName("");
       setEmail("");
-    } catch {
-      setMessage("Failed to send invitation. Please try again.");
+    } catch (err) {
+      setMessage(
+        err?.response?.data?.message ||
+          "Failed to send invitation. Please try again."
+      );
     } finally {
       setLoading(false);
     }
@@ -82,6 +89,7 @@ export default function InviteCandidates() {
             style={{
               ...buttonStyle,
               opacity: loading ? 0.7 : 1,
+              cursor: loading ? "not-allowed" : "pointer",
             }}
           >
             {loading ? "Sending Invitation..." : "Send Invitation"}
@@ -132,5 +140,4 @@ const buttonStyle = {
   borderRadius: 6,
   fontSize: 15,
   fontWeight: 600,
-  cursor: "pointer",
 };

@@ -4,7 +4,8 @@ require("dotenv").config();
 
 const app = express();
 
-/* ================= MIDDLEWARE ================= */
+app.set("trust proxy", 1);
+
 app.use(
   cors({
     origin: [
@@ -15,21 +16,19 @@ app.use(
   })
 );
 
+app.options("*", cors());
 app.use(express.json());
 
-/* ================= ROUTES ================= */
 app.use("/api/auth", require("./auth.routes"));
 app.use("/api/admin", require("./admin.routes"));
 app.use("/api/invitations", require("./invitations.routes"));
 app.use("/api/verify", require("./verify.routes"));
 app.use("/api/test", require("./test.routes"));
 
-/* ================= HEALTH ================= */
 app.get("/api/health", (req, res) => {
   res.json({ status: "OK", message: "Backend running" });
 });
 
-/* ================= FALLBACK ================= */
 app.use((req, res) => {
   res.status(404).json({ message: "Route not found" });
 });

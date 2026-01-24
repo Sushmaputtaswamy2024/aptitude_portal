@@ -5,6 +5,7 @@ import api from "../services/api";
 export default function Dashboard() {
   const [stats, setStats] = useState({
     invited: 0,
+    verified: 0,
     started: 0,
     submitted: 0,
   });
@@ -14,18 +15,19 @@ export default function Dashboard() {
 
   useEffect(() => {
     api
-      .get("/admin/status") // ✅ FIXED
+      .get("/admin/status")
       .then((res) => {
         const data = res.data || [];
 
         setStats({
           invited: data.filter((c) => c.status === "INVITED").length,
+          verified: data.filter((c) => c.status === "VERIFIED").length,
           started: data.filter((c) => c.status === "STARTED").length,
           submitted: data.filter((c) => c.status === "SUBMITTED").length,
         });
 
         setRecent(
-          data
+          [...data]
             .sort(
               (a, b) =>
                 new Date(b.last_updated) - new Date(a.last_updated)
@@ -52,9 +54,10 @@ export default function Dashboard() {
         <>
           {/* ===== SUMMARY STATS ===== */}
           <div style={cardGrid}>
-            <StatCard title="Invited Candidates" value={stats.invited} />
-            <StatCard title="Started Tests" value={stats.started} />
-            <StatCard title="Completed Tests" value={stats.submitted} />
+            <StatCard title="Invited" value={stats.invited} />
+            <StatCard title="Email Verified" value={stats.verified} />
+            <StatCard title="Test Started" value={stats.started} />
+            <StatCard title="Completed" value={stats.submitted} />
           </div>
 
           {/* ===== QUICK ACTIONS ===== */}
@@ -85,8 +88,8 @@ export default function Dashboard() {
             <h3>Recent Activity</h3>
 
             <div style={activityBox}>
-              {recent.map((r, i) => (
-                <div key={i} style={activityRow}>
+              {recent.map((r) => (
+                <div key={r.candidate_id} style={activityRow}>
                   <div>
                     <strong>{r.name}</strong>
                     <div style={{ fontSize: 13, color: "#4b5563" }}>
@@ -141,6 +144,7 @@ function ActionCard({ title, description, link }) {
 
 function statusText(status) {
   if (status === "INVITED") return "Invitation sent";
+  if (status === "VERIFIED") return "Email verified";
   if (status === "STARTED") return "Test started";
   if (status === "SUBMITTED") return "Test completed";
   return status;
@@ -184,7 +188,6 @@ const actionCard = {
   background: "#ffffff",
   border: "1px solid #e5e7eb",
   borderRadius: 6,
-  cursor: "pointer",
 };
 
 const actionLink = {

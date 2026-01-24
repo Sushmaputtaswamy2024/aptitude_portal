@@ -7,13 +7,24 @@ export default function Results() {
 
   const [candidate, setCandidate] = useState(null);
   const [summary, setSummary] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   /* ================= LOAD RESULT ================= */
   useEffect(() => {
-    api.get(`/admin/results/${id}`).then((res) => {
-      setCandidate(res.data.candidate || null);
-      setSummary(res.data.summary || []);
-    });
+    setLoading(true);
+    setError("");
+
+    api
+      .get(`/admin/results/${id}`)
+      .then((res) => {
+        setCandidate(res.data.candidate || null);
+        setSummary(res.data.summary || []);
+      })
+      .catch(() => {
+        setError("Failed to load candidate results");
+      })
+      .finally(() => setLoading(false));
   }, [id]);
 
   /* ================= CALCULATIONS ================= */
@@ -26,6 +37,18 @@ export default function Results() {
       : 0;
 
   /* ================= RENDER ================= */
+  if (loading) {
+    return <p style={{ marginTop: 20 }}>Loading results...</p>;
+  }
+
+  if (error) {
+    return (
+      <p style={{ marginTop: 20, color: "#b91c1c" }}>
+        {error}
+      </p>
+    );
+  }
+
   return (
     <>
       <h2>Candidate Results</h2>

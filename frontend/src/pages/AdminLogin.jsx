@@ -21,12 +21,21 @@ export default function AdminLogin() {
 
     try {
       setLoading(true);
-      const res = await api.post("/auth/login", { email, password });
 
+      const res = await api.post("/auth/login", {
+        email,
+        password,
+      });
+
+      // ✅ Store token
       localStorage.setItem("adminToken", res.data.token);
+
+      // ✅ Redirect to dashboard
       navigate("/admin/dashboard");
     } catch (err) {
-      setError("Invalid admin credentials");
+      setError(
+        err?.response?.data?.message || "Invalid admin credentials"
+      );
     } finally {
       setLoading(false);
     }
@@ -49,6 +58,7 @@ export default function AdminLogin() {
           onChange={(e) => setEmail(e.target.value)}
           placeholder="admin@example.com"
           style={inputStyle}
+          autoComplete="email"
         />
 
         <label style={labelStyle}>Password</label>
@@ -58,6 +68,7 @@ export default function AdminLogin() {
           onChange={(e) => setPassword(e.target.value)}
           placeholder="••••••••"
           style={inputStyle}
+          autoComplete="current-password"
         />
 
         <button
@@ -66,6 +77,7 @@ export default function AdminLogin() {
           style={{
             ...buttonStyle,
             opacity: loading ? 0.7 : 1,
+            cursor: loading ? "not-allowed" : "pointer",
           }}
         >
           {loading ? "Signing in..." : "Login"}
@@ -88,7 +100,7 @@ const pageStyle = {
 const cardStyle = {
   width: 360,
   padding: 30,
-  background: "#fff",
+  background: "#ffffff",
   borderRadius: 8,
   boxShadow: "0 10px 30px rgba(0,0,0,0.1)",
 };
@@ -113,11 +125,10 @@ const buttonStyle = {
   width: "100%",
   padding: 12,
   background: "#2f3640",
-  color: "#fff",
+  color: "#ffffff",
   border: "none",
   borderRadius: 4,
   fontSize: 14,
-  cursor: "pointer",
 };
 
 const errorStyle = {
