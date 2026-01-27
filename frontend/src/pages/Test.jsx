@@ -13,7 +13,6 @@ export default function Test() {
   const [loading, setLoading] = useState(true);
 
   const submittedRef = useRef(false);
-  const timerRef = useRef(null);
 
   /* ================= LOAD TEST ================= */
   useEffect(() => {
@@ -43,11 +42,11 @@ export default function Test() {
       return;
     }
 
-    timerRef.current = setInterval(() => {
+    const timer = setInterval(() => {
       setTimeLeft((t) => t - 1);
     }, 1000);
 
-    return () => clearInterval(timerRef.current);
+    return () => clearInterval(timer);
   }, [timeLeft]);
 
   /* ================= SUBMIT ================= */
@@ -55,26 +54,22 @@ export default function Test() {
     if (submittedRef.current) return;
     submittedRef.current = true;
 
-    clearInterval(timerRef.current);
-
     try {
       await api.post("/test/submit", { token, answers });
       navigate("/thank-you");
     } catch {
-      alert("Submission failed. Please contact support.");
+      alert("Submission failed");
       submittedRef.current = false;
     }
   };
 
   if (loading) return <p style={{ padding: 40 }}>Loading test...</p>;
 
-  /* ================= TEST UI ================= */
   return (
     <div style={page}>
       <div style={card}>
         <div style={header}>
           <h2>Aptitude Test</h2>
-
           <div style={timer}>
             ⏱ {Math.floor(timeLeft / 60)}:
             {String(timeLeft % 60).padStart(2, "0")}
@@ -123,7 +118,7 @@ const page = {
 const card = {
   maxWidth: 900,
   margin: "0 auto",
-  background: "#ffffff",
+  background: "#fff",
   padding: 32,
   borderRadius: 16,
   boxShadow: "0 10px 30px rgba(0,0,0,0.08)",
@@ -138,7 +133,7 @@ const header = {
 
 const timer = {
   background: "#1f4fd8",
-  color: "#ffffff",
+  color: "#fff",
   padding: "10px 18px",
   borderRadius: 20,
   fontWeight: 600,
@@ -172,7 +167,7 @@ const submitBtn = {
   width: "100%",
   padding: 14,
   background: "#1f4fd8",
-  color: "#ffffff",
+  color: "#fff",
   border: "none",
   borderRadius: 10,
   fontWeight: 600,
