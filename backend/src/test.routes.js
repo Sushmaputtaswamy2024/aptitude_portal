@@ -22,19 +22,19 @@ router.get("/start", async (req, res) => {
 
     const invite = inviteRes.rows[0];
 
-    // 🔒 Expired link
+    // Expired
     if (invite.expires_at && new Date(invite.expires_at) < new Date()) {
       return res.status(410).json({ message: "Test link expired" });
     }
 
-    // 🔒 Already submitted
+    // Already submitted
     if (invite.status === "SUBMITTED") {
       return res.status(403).json({ message: "Test already submitted" });
     }
 
-    // Assign questions only once
+    /* ===== Assign questions once ===== */
     const existing = await pool.query(
-      "SELECT 1 FROM test_questions WHERE invitation_id = $1",
+      "SELECT 1 FROM test_questions WHERE invitation_id = $1 LIMIT 1",
       [invite.id]
     );
 
@@ -51,17 +51,18 @@ router.get("/start", async (req, res) => {
       }
 
       await pool.query(
-        "UPDATE invitations SET status = 'STARTED', started_at = NOW() WHERE id = $1",
+        "UPDATE invitations SET status='STARTED', started_at=NOW() WHERE id=$1",
         [invite.id]
       );
     }
 
+    /* ===== Load assigned questions ===== */
     const result = await pool.query(
       `
       SELECT
         q.id,
         q.question,
-        q.options::json AS options
+        q.options
       FROM test_questions tq
       JOIN questions q ON q.id = tq.question_id
       WHERE tq.invitation_id = $1
@@ -85,71 +86,67 @@ router.post("/submit", async (req, res) => {
   try {
     const { token, answers } = req.body;
 
-    if (!token || typeof answers !== "object") {
+    if (!token || !answers) {
       return res.status(400).json({ message: "Token and answers required" });
     }
 
     const inviteRes = await pool.query(
-      "SELECT * FROM invitations WHERE token = $1",
+      "SELECT * FROM invitations WHERE token=$1",
       [token]
     );
 
     if (inviteRes.rows.length === 0) {
-      return res.status(400).json({ message: "Invalid test token" });
+      return res.status(400).json({ message: "Invalid token" });
     }
 
     const invite = inviteRes.rows[0];
 
-    // 🔒 Already submitted
     if (invite.status === "SUBMITTED") {
-      return res.status(403).json({ message: "Test already submitted" });
+      return res.status(403).json({ message: "Already submitted" });
     }
 
-    // 🔒 Expired
     if (invite.expires_at && new Date(invite.expires_at) < new Date()) {
-      return res.status(410).json({ message: "Test link expired" });
+      return res.status(410).json({ message: "Expired" });
     }
 
+    /* ===== Calculate score ===== */
     let score = 0;
 
     for (const qId of Object.keys(answers)) {
-      const qRes = await pool.query(
-        "SELECT correct_answer FROM questions WHERE id = $1",
+      const q = await pool.query(
+        "SELECT correct_answer FROM questions WHERE id=$1",
         [qId]
       );
 
       if (
-        qRes.rows.length > 0 &&
-        qRes.rows[0].correct_answer === answers[qId]
+        q.rows.length &&
+        q.rows[0].correct_answer === answers[qId]
       ) {
         score++;
       }
     }
 
-    // ✅ FIX: answers column handled properly
+    /* ===== Store result ===== */
     await pool.query(
       `
       INSERT INTO test_results (invitation_id, answers, score)
-      VALUES ($1, $2, $3)
+      VALUES ($1,$2,$3)
       `,
       [invite.id, JSON.stringify(answers), score]
     );
 
     await pool.query(
-      "UPDATE invitations SET status = 'SUBMITTED', submitted_at = NOW() WHERE id = $1",
+      "UPDATE invitations SET status='SUBMITTED', submitted_at=NOW() WHERE id=$1",
       [invite.id]
     );
 
     res.json({
-      message: "Test submitted successfully",
+      message: "Test submitted",
       score,
     });
   } catch (err) {
-    console.error("🔥 SUBMIT TEST ERROR:", err);
-    res.status(500).json({
-      message: "Server error",
-      error: err.message,
-    });
+    console.error("🔥 SUBMIT ERROR:", err);
+    res.status(500).json({ message: "Server error" });
   }
 });
 
