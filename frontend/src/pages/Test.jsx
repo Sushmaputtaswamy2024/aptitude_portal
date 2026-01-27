@@ -11,13 +11,9 @@ export default function Test() {
   const [answers, setAnswers] = useState({});
   const [timeLeft, setTimeLeft] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [violations, setViolations] = useState(0);
-  const [testStarted, setTestStarted] = useState(false);
 
   const submittedRef = useRef(false);
   const timerRef = useRef(null);
-
-  const MAX_VIOLATIONS = 3;
 
   /* ================= LOAD TEST ================= */
   useEffect(() => {
@@ -40,70 +36,8 @@ export default function Test() {
       .finally(() => setLoading(false));
   }, [token, navigate]);
 
-  /* ================= START TEST ================= */
-  const startTest = async () => {
-    try {
-      await document.documentElement.requestFullscreen();
-      setTestStarted(true);
-    } catch {
-      alert("Please allow fullscreen to start the test.");
-    }
-  };
-
-  /* ================= FULLSCREEN VIOLATION ================= */
-  useEffect(() => {
-    if (!testStarted) return;
-
-    const onFullscreenChange = () => {
-      if (!document.fullscreenElement) {
-        setViolations((v) => v + 1);
-        alert("Do not exit fullscreen during the test.");
-      }
-    };
-
-    document.addEventListener("fullscreenchange", onFullscreenChange);
-    return () =>
-      document.removeEventListener(
-        "fullscreenchange",
-        onFullscreenChange
-      );
-  }, [testStarted]);
-
-  /* ================= TAB SWITCH VIOLATION ================= */
-  useEffect(() => {
-    if (!testStarted) return;
-
-    const onVisibility = () => {
-      if (document.hidden) setViolations((v) => v + 1);
-    };
-
-    const onBlur = () => setViolations((v) => v + 1);
-
-    document.addEventListener("visibilitychange", onVisibility);
-    window.addEventListener("blur", onBlur);
-
-    return () => {
-      document.removeEventListener("visibilitychange", onVisibility);
-      window.removeEventListener("blur", onBlur);
-    };
-  }, [testStarted]);
-
-  /* ================= VIOLATION CHECK ================= */
-  useEffect(() => {
-    if (!testStarted || violations === 0) return;
-
-    alert(`Warning ${violations}/${MAX_VIOLATIONS}`);
-
-    if (violations >= MAX_VIOLATIONS) {
-      alert("Test auto-submitted due to violations.");
-      handleSubmit();
-    }
-  }, [violations, testStarted]);
-
   /* ================= TIMER ================= */
   useEffect(() => {
-    if (!testStarted) return;
-
     if (timeLeft <= 0) {
       handleSubmit();
       return;
@@ -114,7 +48,7 @@ export default function Test() {
     }, 1000);
 
     return () => clearInterval(timerRef.current);
-  }, [testStarted, timeLeft]);
+  }, [timeLeft]);
 
   /* ================= SUBMIT ================= */
   const handleSubmit = async () => {
@@ -125,7 +59,6 @@ export default function Test() {
 
     try {
       await api.post("/test/submit", { token, answers });
-      if (document.fullscreenElement) document.exitFullscreen();
       navigate("/thank-you");
     } catch {
       alert("Submission failed. Please contact support.");
@@ -133,31 +66,7 @@ export default function Test() {
     }
   };
 
-  if (loading) {
-    return <p style={{ padding: 40 }}>Loading test...</p>;
-  }
-
-  /* ================= START SCREEN ================= */
-  if (!testStarted) {
-    return (
-      
-      <div style={page}>
-        <div style={card}>
-          <h2>Aptitude Test Instructions</h2>
-          <ul>
-            <li>Fullscreen is mandatory</li>
-            <li>Do not switch tabs or windows</li>
-            <li>Maximum 3 warnings allowed</li>
-            <li>Test will auto-submit when time ends</li>
-          </ul>
-
-          <button onClick={startTest} style={submitBtn}>
-            Start Test
-          </button>
-        </div>
-      </div>
-    );
-  }
+  if (loading) return <p style={{ padding: 40 }}>Loading test...</p>;
 
   /* ================= TEST UI ================= */
   return (
@@ -165,6 +74,7 @@ export default function Test() {
       <div style={card}>
         <div style={header}>
           <h2>Aptitude Test</h2>
+
           <div style={timer}>
             ⏱ {Math.floor(timeLeft / 60)}:
             {String(timeLeft % 60).padStart(2, "0")}
