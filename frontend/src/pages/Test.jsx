@@ -1,175 +1,189 @@
-import { useEffect, useState, useRef } from "react";
-import { useSearchParams, useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import api from "../services/api";
+import BrandLayout from "../components/BrandLayout";
 
 export default function Test() {
   const [params] = useSearchParams();
   const token = params.get("token");
-  const navigate = useNavigate();
 
   const [questions, setQuestions] = useState([]);
   const [answers, setAnswers] = useState({});
-  const [timeLeft, setTimeLeft] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [timeLeft, setTimeLeft] = useState(30 * 60); // 30 mins
+  const [isFullscreen, setIsFullscreen] = useState(
+    !!document.fullscreenElement
+  );
+  const [submitted, setSubmitted] = useState(false);
 
-  const submittedRef = useRef(false);
+  /* ================= FULLSCREEN HANDLING ================= */
 
-  /* ================= LOAD TEST ================= */
   useEffect(() => {
-    if (!token) {
-      alert("Invalid test link");
-      navigate("/");
-      return;
+    const onChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+
+    document.addEventListener("fullscreenchange", onChange);
+    return () => document.removeEventListener("fullscreenchange", onChange);
+  }, []);
+
+  const enterFullscreen = async () => {
+    try {
+      await document.documentElement.requestFullscreen();
+    } catch {
+      alert("Please allow fullscreen to continue.");
     }
+  };
+
+  /* ================= LOAD QUESTIONS ================= */
+
+  useEffect(() => {
+    if (!token) return;
 
     api
       .get(`/test/start?token=${token}`)
       .then((res) => {
         setQuestions(res.data.questions || []);
-        setTimeLeft(res.data.duration || 0);
+        setTimeLeft(res.data.duration || 1800);
+        setLoading(false);
       })
       .catch(() => {
-        alert("Invalid or expired test link.");
-        navigate("/");
-      })
-      .finally(() => setLoading(false));
-  }, [token, navigate]);
+        alert("Invalid or expired test link");
+      });
+  }, [token]);
 
   /* ================= TIMER ================= */
+
   useEffect(() => {
-    if (timeLeft <= 0) {
-      handleSubmit();
-      return;
-    }
+    if (loading || submitted || !isFullscreen) return;
 
     const timer = setInterval(() => {
-      setTimeLeft((t) => t - 1);
+      setTimeLeft((t) => {
+        if (t <= 1) {
+          submitTest();
+          return 0;
+        }
+        return t - 1;
+      });
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [timeLeft]);
+  }, [loading, submitted, isFullscreen]);
+
+  /* ================= ANSWERS ================= */
+
+  const selectAnswer = (qid, value) => {
+    setAnswers((prev) => ({
+      ...prev,
+      [qid]: value,
+    }));
+  };
 
   /* ================= SUBMIT ================= */
-  const handleSubmit = async () => {
-    if (submittedRef.current) return;
-    submittedRef.current = true;
+
+  const submitTest = async () => {
+    if (submitted) return;
+    setSubmitted(true);
 
     try {
-      await api.post("/test/submit", { token, answers });
-      navigate("/thank-you");
+      await api.post("/test/submit", {
+        token,
+        answers,
+      });
+
+      alert("Test submitted successfully");
     } catch {
       alert("Submission failed");
-      submittedRef.current = false;
     }
   };
 
-  if (loading) return <p style={{ padding: 40 }}>Loading test...</p>;
+  /* ================= FULLSCREEN BLOCK SCREEN ================= */
+
+  if (!isFullscreen) {
+    return (
+      <BrandLayout>
+        <div
+          style={{
+            height: "80vh",
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "center",
+            alignItems: "center",
+          }}
+        >
+          <h2>Fullscreen Required</h2>
+
+          <p>Please click below to start your assessment.</p>
+
+          <button
+            onClick={enterFullscreen}
+            style={{
+              marginTop: 20,
+              padding: "12px 30px",
+              fontSize: 16,
+              cursor: "pointer",
+            }}
+          >
+            Enter Fullscreen
+          </button>
+        </div>
+      </BrandLayout>
+    );
+  }
+
+  /* ================= LOADING ================= */
+
+  if (loading) {
+    return (
+      <BrandLayout>
+        <p>Loading test...</p>
+      </BrandLayout>
+    );
+  }
+
+  /* ================= MAIN TEST UI ================= */
 
   return (
-    <div style={page}>
-      <div style={card}>
-        <div style={header}>
-          <h2>Aptitude Test</h2>
-          <div style={timer}>
-            ⏱ {Math.floor(timeLeft / 60)}:
-            {String(timeLeft % 60).padStart(2, "0")}
-          </div>
-        </div>
+    <BrandLayout>
+      <div>
+        <h3>
+          Time Remaining: {Math.floor(timeLeft / 60)}:
+          {(timeLeft % 60).toString().padStart(2, "0")}
+        </h3>
 
-        {questions.map((q, i) => (
-          <div key={q.id} style={questionBox}>
-            <p style={questionText}>
-              {i + 1}. {q.question}
-            </p>
+        {questions.map((q, idx) => (
+          <div key={q.id} style={{ marginTop: 25 }}>
+            <strong>
+              {idx + 1}. {q.question}
+            </strong>
 
-            {Object.entries(q.options).map(([key, value]) => (
-              <div
-                key={key}
-                style={{
-                  ...option,
-                  ...(answers[q.id] === key ? optionSelected : {}),
-                }}
-                onClick={() =>
-                  setAnswers((prev) => ({ ...prev, [q.id]: key }))
-                }
-              >
-                <b>{key}.</b> {value}
+            {q.options.map((opt, i) => (
+              <div key={i}>
+                <label>
+                  <input
+                    type="radio"
+                    name={`q-${q.id}`}
+                    checked={answers[q.id] === opt}
+                    onChange={() => selectAnswer(q.id, opt)}
+                  />
+                  {opt}
+                </label>
               </div>
             ))}
           </div>
         ))}
 
-        <button onClick={handleSubmit} style={submitBtn}>
+        <button
+          onClick={submitTest}
+          style={{
+            marginTop: 40,
+            padding: "10px 30px",
+            fontSize: 16,
+          }}
+        >
           Submit Test
         </button>
       </div>
-    </div>
+    </BrandLayout>
   );
 }
-
-/* ================= STYLES ================= */
-
-const page = {
-  minHeight: "100vh",
-  background: "#f4f6fb",
-  padding: 30,
-};
-
-const card = {
-  maxWidth: 900,
-  margin: "0 auto",
-  background: "#fff",
-  padding: 32,
-  borderRadius: 16,
-  boxShadow: "0 10px 30px rgba(0,0,0,0.08)",
-};
-
-const header = {
-  display: "flex",
-  justifyContent: "space-between",
-  alignItems: "center",
-  marginBottom: 30,
-};
-
-const timer = {
-  background: "#1f4fd8",
-  color: "#fff",
-  padding: "10px 18px",
-  borderRadius: 20,
-  fontWeight: 600,
-};
-
-const questionBox = {
-  marginBottom: 28,
-};
-
-const questionText = {
-  fontSize: 18,
-  fontWeight: 600,
-  marginBottom: 12,
-};
-
-const option = {
-  padding: "12px 16px",
-  border: "1px solid #e5e7eb",
-  borderRadius: 10,
-  marginBottom: 10,
-  cursor: "pointer",
-};
-
-const optionSelected = {
-  background: "#eef3ff",
-  border: "1px solid #1f4fd8",
-};
-
-const submitBtn = {
-  marginTop: 30,
-  width: "100%",
-  padding: 14,
-  background: "#1f4fd8",
-  color: "#fff",
-  border: "none",
-  borderRadius: 10,
-  fontWeight: 600,
-  cursor: "pointer",
-};
