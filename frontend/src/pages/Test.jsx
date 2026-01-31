@@ -10,29 +10,29 @@ export default function Test() {
   const [questions, setQuestions] = useState([]);
   const [answers, setAnswers] = useState({});
   const [loading, setLoading] = useState(true);
-  const [timeLeft, setTimeLeft] = useState(30 * 60); // 30 mins
-  const [isFullscreen, setIsFullscreen] = useState(
-    !!document.fullscreenElement
-  );
+  const [timeLeft, setTimeLeft] = useState(30 * 60);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
-  /* ================= FULLSCREEN HANDLING ================= */
+  /* ================= FULLSCREEN DETECTOR ================= */
 
   useEffect(() => {
-    const onChange = () => {
+    const handler = () => {
       setIsFullscreen(!!document.fullscreenElement);
     };
 
-    document.addEventListener("fullscreenchange", onChange);
-    return () => document.removeEventListener("fullscreenchange", onChange);
+    document.addEventListener("fullscreenchange", handler);
+    return () => document.removeEventListener("fullscreenchange", handler);
   }, []);
 
-  const enterFullscreen = async () => {
-    try {
-      await document.documentElement.requestFullscreen();
-    } catch {
-      alert("Please allow fullscreen to continue.");
-    }
+  /* ================= ENTER FULLSCREEN (BUTTON ONLY) ================= */
+
+  const enterFullscreen = (e) => {
+    const el = e.currentTarget;
+
+    if (el.requestFullscreen) el.requestFullscreen();
+    else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+    else if (el.msRequestFullscreen) el.msRequestFullscreen();
   };
 
   /* ================= LOAD QUESTIONS ================= */
@@ -52,7 +52,7 @@ export default function Test() {
       });
   }, [token]);
 
-  /* ================= TIMER ================= */
+  /* ================= TIMER (ONLY AFTER FULLSCREEN) ================= */
 
   useEffect(() => {
     if (loading || submitted || !isFullscreen) return;
@@ -97,7 +97,7 @@ export default function Test() {
     }
   };
 
-  /* ================= FULLSCREEN BLOCK SCREEN ================= */
+  /* ================= FULLSCREEN BLOCK ================= */
 
   if (!isFullscreen) {
     return (
@@ -111,9 +111,9 @@ export default function Test() {
             alignItems: "center",
           }}
         >
-          <h2>Fullscreen Required</h2>
+          <h2>Start Assessment</h2>
 
-          <p>Please click below to start your assessment.</p>
+          <p>Click below to enter fullscreen and begin.</p>
 
           <button
             onClick={enterFullscreen}
@@ -124,7 +124,7 @@ export default function Test() {
               cursor: "pointer",
             }}
           >
-            Enter Fullscreen
+            Start Test
           </button>
         </div>
       </BrandLayout>
@@ -141,7 +141,7 @@ export default function Test() {
     );
   }
 
-  /* ================= MAIN TEST UI ================= */
+  /* ================= MAIN UI ================= */
 
   return (
     <BrandLayout>
