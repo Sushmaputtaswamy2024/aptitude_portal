@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import api from "../services/api";
 import BrandLayout from "../components/BrandLayout";
@@ -7,6 +7,8 @@ export default function Test() {
   const [params] = useSearchParams();
   const token = params.get("token");
 
+  const rootRef = useRef(null);
+
   const [questions, setQuestions] = useState([]);
   const [answers, setAnswers] = useState({});
   const [loading, setLoading] = useState(true);
@@ -14,25 +16,44 @@ export default function Test() {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
-  /* ================= FULLSCREEN DETECTOR ================= */
+  /* ================= FULLSCREEN ================= */
+
+  const checkFullscreen = () => {
+    const fs =
+      document.fullscreenElement ||
+      document.webkitFullscreenElement ||
+      document.mozFullScreenElement ||
+      document.msFullscreenElement;
+
+    setIsFullscreen(!!fs);
+  };
 
   useEffect(() => {
-    const handler = () => {
-      setIsFullscreen(!!document.fullscreenElement);
-    };
+    document.addEventListener("fullscreenchange", checkFullscreen);
+    document.addEventListener("webkitfullscreenchange", checkFullscreen);
 
-    document.addEventListener("fullscreenchange", handler);
-    return () => document.removeEventListener("fullscreenchange", handler);
+    checkFullscreen();
+
+    return () => {
+      document.removeEventListener("fullscreenchange", checkFullscreen);
+      document.removeEventListener("webkitfullscreenchange", checkFullscreen);
+    };
   }, []);
 
-  /* ================= ENTER FULLSCREEN (BUTTON ONLY) ================= */
+  const enterFullscreen = async () => {
+    const el = rootRef.current || document.documentElement;
 
-  const enterFullscreen = (e) => {
-    const el = e.currentTarget;
+    try {
+      if (el.requestFullscreen) await el.requestFullscreen();
+      else if (el.webkitRequestFullscreen) await el.webkitRequestFullscreen();
+      else if (el.mozRequestFullScreen) await el.mozRequestFullScreen();
+      else if (el.msRequestFullscreen) await el.msRequestFullscreen();
 
-    if (el.requestFullscreen) el.requestFullscreen();
-    else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
-    else if (el.msRequestFullscreen) el.msRequestFullscreen();
+      setTimeout(checkFullscreen, 300);
+    } catch (e) {
+      alert("Browser blocked fullscreen. Please allow fullscreen.");
+      console.error(e);
+    }
   };
 
   /* ================= LOAD QUESTIONS ================= */
@@ -47,15 +68,13 @@ export default function Test() {
         setTimeLeft(res.data.duration || 1800);
         setLoading(false);
       })
-      .catch(() => {
-        alert("Invalid or expired test link");
-      });
+      .catch(() => alert("Invalid test link"));
   }, [token]);
 
-  /* ================= TIMER (ONLY AFTER FULLSCREEN) ================= */
+  /* ================= TIMER ================= */
 
   useEffect(() => {
-    if (loading || submitted || !isFullscreen) return;
+    if (!isFullscreen || loading || submitted) return;
 
     const timer = setInterval(() => {
       setTimeLeft((t) => {
@@ -68,15 +87,12 @@ export default function Test() {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [loading, submitted, isFullscreen]);
+  }, [isFullscreen, loading, submitted]);
 
   /* ================= ANSWERS ================= */
 
-  const selectAnswer = (qid, value) => {
-    setAnswers((prev) => ({
-      ...prev,
-      [qid]: value,
-    }));
+  const selectAnswer = (qid, val) => {
+    setAnswers((p) => ({ ...p, [qid]: val }));
   };
 
   /* ================= SUBMIT ================= */
@@ -86,14 +102,10 @@ export default function Test() {
     setSubmitted(true);
 
     try {
-      await api.post("/test/submit", {
-        token,
-        answers,
-      });
-
-      alert("Test submitted successfully");
+      await api.post("/test/submit", { token, answers });
+      alert("Test submitted");
     } catch {
-      alert("Submission failed");
+      alert("Submit failed");
     }
   };
 
@@ -103,6 +115,7 @@ export default function Test() {
     return (
       <BrandLayout>
         <div
+          ref={rootRef}
           style={{
             height: "80vh",
             display: "flex",
@@ -111,18 +124,12 @@ export default function Test() {
             alignItems: "center",
           }}
         >
-          <h2>Start Assessment</h2>
-
-          <p>Click below to enter fullscreen and begin.</p>
+          <h2>Start Test</h2>
+          <p>Click below to enter fullscreen.</p>
 
           <button
             onClick={enterFullscreen}
-            style={{
-              marginTop: 20,
-              padding: "12px 30px",
-              fontSize: 16,
-              cursor: "pointer",
-            }}
+            style={{ padding: "14px 40px", fontSize: 18 }}
           >
             Start Test
           </button>
@@ -136,54 +143,45 @@ export default function Test() {
   if (loading) {
     return (
       <BrandLayout>
-        <p>Loading test...</p>
+        <p>Loading...</p>
       </BrandLayout>
     );
   }
 
-  /* ================= MAIN UI ================= */
+  /* ================= TEST ================= */
 
   return (
     <BrandLayout>
-      <div>
-        <h3>
-          Time Remaining: {Math.floor(timeLeft / 60)}:
-          {(timeLeft % 60).toString().padStart(2, "0")}
-        </h3>
+      <h3>
+        Time Left: {Math.floor(timeLeft / 60)}:
+        {(timeLeft % 60).toString().padStart(2, "0")}
+      </h3>
 
-        {questions.map((q, idx) => (
-          <div key={q.id} style={{ marginTop: 25 }}>
-            <strong>
-              {idx + 1}. {q.question}
-            </strong>
+      {questions.map((q, i) => (
+        <div key={q.id} style={{ marginTop: 20 }}>
+          <strong>
+            {i + 1}. {q.question}
+          </strong>
 
-            {q.options.map((opt, i) => (
-              <div key={i}>
-                <label>
-                  <input
-                    type="radio"
-                    name={`q-${q.id}`}
-                    checked={answers[q.id] === opt}
-                    onChange={() => selectAnswer(q.id, opt)}
-                  />
-                  {opt}
-                </label>
-              </div>
-            ))}
-          </div>
-        ))}
+          {q.options.map((o, k) => (
+            <div key={k}>
+              <label>
+                <input
+                  type="radio"
+                  name={`q${q.id}`}
+                  checked={answers[q.id] === o}
+                  onChange={() => selectAnswer(q.id, o)}
+                />
+                {o}
+              </label>
+            </div>
+          ))}
+        </div>
+      ))}
 
-        <button
-          onClick={submitTest}
-          style={{
-            marginTop: 40,
-            padding: "10px 30px",
-            fontSize: 16,
-          }}
-        >
-          Submit Test
-        </button>
-      </div>
+      <button onClick={submitTest} style={{ marginTop: 40 }}>
+        Submit
+      </button>
     </BrandLayout>
   );
 }
