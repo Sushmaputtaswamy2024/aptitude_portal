@@ -16,7 +16,7 @@ export default function Results() {
     setError("");
 
     api
-      .get(`/admin/results/${id}`)
+      .get(`/api/admin/results/${id}`)
       .then((res) => {
         setCandidate(res.data.candidate || null);
         setSummary(res.data.summary || []);
