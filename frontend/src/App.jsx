@@ -21,7 +21,7 @@ export default function App() {
       {/* Admin Login */}
       <Route path="/admin/login" element={<AdminLogin />} />
 
-      {/* Admin Protected Routes */}
+      {/* ================= ADMIN PROTECTED ================= */}
       <Route
         path="/admin"
         element={
@@ -34,14 +34,20 @@ export default function App() {
         <Route path="invite" element={<InviteCandidates />} />
         <Route path="status" element={<CandidateStatus />} />
 
-        {/* 🔥 IMPORTANT FIX */}
+        {/* Admin Results */}
         <Route path="results/:id" element={<Results />} />
       </Route>
 
-      {/* Candidate */}
+      {/* ================= CANDIDATE PUBLIC ================= */}
       <Route path="/verify" element={<Verify />} />
       <Route path="/test" element={<Test />} />
       <Route path="/thank-you" element={<ThankYou />} />
+
+      {/* Candidate Results (PUBLIC) */}
+      <Route path="/results/:id" element={<Results />} />
+
+      {/* Fallback */}
+      <Route path="*" element={<Navigate to="/" />} />
     </Routes>
   );
 }
