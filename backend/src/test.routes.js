@@ -37,7 +37,13 @@ router.get("/start", async (req, res) => {
 
     if (!existing.rows.length) {
       const qs = await pool.query(`
-        SELECT id FROM questions ORDER BY category, RANDOM()
+SELECT id
+FROM questions
+WHERE id NOT IN (
+  SELECT question_id FROM test_questions
+)
+ORDER BY RANDOM()
+LIMIT 50;
       `);
 
       for (const q of qs.rows) {
