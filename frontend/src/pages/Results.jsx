@@ -3,14 +3,14 @@ import { useParams } from "react-router-dom";
 import api from "../services/api";
 
 export default function Results() {
-  const { id } = useParams();
+  const { id } = useParams(); // candidateId
 
   const [candidate, setCandidate] = useState(null);
   const [summary, setSummary] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  /* ================= LOAD RESULT ================= */
+  /* ================= LOAD RESULTS ================= */
   useEffect(() => {
     setLoading(true);
     setError("");
@@ -21,22 +21,23 @@ export default function Results() {
         setCandidate(res.data.candidate || null);
         setSummary(res.data.summary || []);
       })
-      .catch(() => {
-        setError("Failed to load candidate results");
+      .catch((err) => {
+        console.error(err);
+        setError("Unable to load results");
       })
       .finally(() => setLoading(false));
   }, [id]);
 
   /* ================= CALCULATIONS ================= */
-  const totalCorrect = summary.reduce((sum, c) => sum + c.correct, 0);
-  const totalQuestions = summary.reduce((sum, c) => sum + c.total, 0);
+  const totalCorrect = summary.reduce((s, c) => s + c.correct, 0);
+  const totalQuestions = summary.reduce((s, c) => s + c.total, 0);
 
   const percentage =
     totalQuestions > 0
       ? ((totalCorrect / totalQuestions) * 100).toFixed(1)
       : 0;
 
-  /* ================= RENDER ================= */
+  /* ================= STATES ================= */
   if (loading) {
     return <p style={{ marginTop: 20 }}>Loading results...</p>;
   }
@@ -50,10 +51,10 @@ export default function Results() {
   }
 
   return (
-    <>
+    <div style={{ padding: 24, maxWidth: 900, margin: "0 auto" }}>
       <h2>Candidate Results</h2>
-      <p style={{ marginTop: 6, color: "#6b7280" }}>
-        Category-wise performance breakdown
+      <p style={{ color: "#6b7280" }}>
+        Category-wise performance summary
       </p>
 
       {/* ================= CANDIDATE INFO ================= */}
@@ -75,7 +76,7 @@ export default function Results() {
       <div style={overallCard}>
         <div>
           <strong>Total Score</strong>
-          <div style={{ fontSize: 22, fontWeight: 600 }}>
+          <div style={bigText}>
             {totalCorrect} / {totalQuestions}
           </div>
         </div>
@@ -84,8 +85,7 @@ export default function Results() {
           <strong>Percentage</strong>
           <div
             style={{
-              fontSize: 22,
-              fontWeight: 600,
+              ...bigText,
               color: percentage >= 60 ? "#2e7d32" : "#c62828",
             }}
           >
@@ -94,48 +94,46 @@ export default function Results() {
         </div>
       </div>
 
-      {/* ================= CATEGORY WISE ================= */}
+      {/* ================= CATEGORY RESULTS ================= */}
       <h3 style={{ marginTop: 30 }}>Category-wise Performance</h3>
 
-      <div style={{ marginTop: 16 }}>
-        {summary.map((item, index) => {
-          const catPercent =
-            item.total > 0
-              ? ((item.correct / item.total) * 100).toFixed(1)
-              : 0;
+      {summary.length === 0 && (
+        <div style={emptyStyle}>No results available</div>
+      )}
 
-          return (
-            <div key={index} style={categoryCard}>
-              <div style={categoryHeader}>
-                <strong>{item.category}</strong>
-                <span style={scoreBadge}>
-                  {item.correct} / {item.total}
-                </span>
-              </div>
+      {summary.map((item, index) => {
+        const catPercent =
+          item.total > 0
+            ? ((item.correct / item.total) * 100).toFixed(1)
+            : 0;
 
-              <div style={progressBar}>
-                <div
-                  style={{
-                    ...progressFill,
-                    width: `${catPercent}%`,
-                    background:
-                      catPercent >= 60 ? "#2e7d32" : "#c62828",
-                  }}
-                />
-              </div>
-
-              <small style={{ color: "#6b7280" }}>
-                {catPercent}% correct
-              </small>
+        return (
+          <div key={index} style={categoryCard}>
+            <div style={categoryHeader}>
+              <strong>{item.category}</strong>
+              <span style={scoreBadge}>
+                {item.correct} / {item.total}
+              </span>
             </div>
-          );
-        })}
 
-        {summary.length === 0 && (
-          <div style={emptyStyle}>No results available</div>
-        )}
-      </div>
-    </>
+            <div style={progressBar}>
+              <div
+                style={{
+                  ...progressFill,
+                  width: `${catPercent}%`,
+                  background:
+                    catPercent >= 60 ? "#2e7d32" : "#c62828",
+                }}
+              />
+            </div>
+
+            <small style={{ color: "#6b7280" }}>
+              {catPercent}% correct
+            </small>
+          </div>
+        );
+      })}
+    </div>
   );
 }
 
@@ -165,7 +163,7 @@ const categoryCard = {
   background: "#ffffff",
   borderRadius: 12,
   padding: 16,
-  marginBottom: 14,
+  marginTop: 14,
   boxShadow: "0 4px 14px rgba(0,0,0,0.06)",
 };
 
@@ -196,6 +194,11 @@ const progressBar = {
 const progressFill = {
   height: "100%",
   borderRadius: 6,
+};
+
+const bigText = {
+  fontSize: 22,
+  fontWeight: 600,
 };
 
 const emptyStyle = {

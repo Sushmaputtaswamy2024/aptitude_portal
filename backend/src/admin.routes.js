@@ -20,7 +20,7 @@ router.get("/status", async (req, res) => {
     res.json(result.rows);
   } catch (err) {
     console.error("ADMIN STATUS ERROR:", err);
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({ message: err.message });
   }
 });
 
@@ -30,49 +30,50 @@ router.get("/results/:candidateId", async (req, res) => {
     const { candidateId } = req.params;
 
     const candidateRes = await pool.query(
-      "SELECT id, name, email FROM candidates WHERE id = $1",
+      "SELECT id, name, email FROM candidates WHERE id=$1",
       [candidateId]
     );
 
-    if (candidateRes.rows.length === 0) {
+    if (!candidateRes.rows.length) {
       return res.status(404).json({ message: "Candidate not found" });
     }
 
     const resultRes = await pool.query(
-      `
-      SELECT score, category_score
-      FROM test_results
-      WHERE candidate_id = $1
-      `,
+      "SELECT score, category_score FROM test_results WHERE candidate_id=$1",
       [candidateId]
     );
 
-    if (resultRes.rows.length === 0) {
+    console.log("RAW RESULT:", resultRes.rows);
+
+    if (!resultRes.rows.length) {
       return res.json({
         candidate: candidateRes.rows[0],
         summary: [],
+        score: 0,
       });
     }
 
-    const categoryScore = resultRes.rows[0].category_score || {};
+    let categoryScore = resultRes.rows[0].category_score || {};
 
-    const summary = Object.entries(categoryScore).map(
-      ([category, val]) => ({
-        category,
-        correct: val.correct,
-        total: val.total,
-      })
-    );
+    if (typeof categoryScore === "string") {
+      categoryScore = JSON.parse(categoryScore);
+    }
+
+    const summary = Object.entries(categoryScore).map(([category, val]) => ({
+      category,
+      correct: val.correct,
+      total: val.total,
+    }));
 
     res.json({
       candidate: candidateRes.rows[0],
+      score: resultRes.rows[0].score,
       summary,
     });
   } catch (err) {
     console.error("ADMIN RESULTS ERROR:", err);
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({ message: err.message });
   }
 });
 
 module.exports = router;
-

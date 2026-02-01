@@ -10,7 +10,12 @@ router.get("/start", async (req, res) => {
     if (!token) return res.status(400).json({ message: "Token required" });
 
     const inviteRes = await pool.query(
-      "SELECT * FROM invitations WHERE token=$1",
+      `
+      SELECT i.*, c.id AS candidate_id
+      FROM invitations i
+      JOIN candidates c ON c.id = i.candidate_id
+      WHERE token=$1
+      `,
       [token]
     );
 
@@ -25,18 +30,14 @@ router.get("/start", async (req, res) => {
     if (invite.status === "SUBMITTED")
       return res.status(403).json({ message: "Already submitted" });
 
-    /* ===== Assign questions ONCE ===== */
     const existing = await pool.query(
       "SELECT 1 FROM test_questions WHERE invitation_id=$1 LIMIT 1",
       [invite.id]
     );
 
-    if (existing.rows.length === 0) {
-      // pull ALL 50 questions (already 10 per category)
+    if (!existing.rows.length) {
       const qs = await pool.query(`
-        SELECT id
-        FROM questions
-        ORDER BY category, RANDOM()
+        SELECT id FROM questions ORDER BY category, RANDOM()
       `);
 
       for (const q of qs.rows) {
@@ -52,30 +53,26 @@ router.get("/start", async (req, res) => {
       );
     }
 
-    /* ===== Load assigned questions ===== */
     const result = await pool.query(
       `
-      SELECT
-        q.id,
-        q.question,
-        q.options,
-        q.category
+      SELECT q.id,q.question,q.options,q.category
       FROM test_questions tq
-      JOIN questions q ON q.id = tq.question_id
-      WHERE tq.invitation_id = $1
+      JOIN questions q ON q.id=tq.question_id
+      WHERE tq.invitation_id=$1
       ORDER BY tq.id
       `,
       [invite.id]
     );
 
     res.json({
+      candidateId: invite.candidate_id,
       duration: 50 * 60,
       total: result.rows.length,
       questions: result.rows,
     });
   } catch (err) {
     console.error("START TEST ERROR:", err);
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({ message: err.message });
   }
 });
 
@@ -88,7 +85,12 @@ router.post("/submit", async (req, res) => {
       return res.status(400).json({ message: "Token + answers required" });
 
     const inviteRes = await pool.query(
-      "SELECT * FROM invitations WHERE token=$1",
+      `
+      SELECT i.*, c.id AS candidate_id
+      FROM invitations i
+      JOIN candidates c ON c.id=i.candidate_id
+      WHERE token=$1
+      `,
       [token]
     );
 
@@ -100,25 +102,43 @@ router.post("/submit", async (req, res) => {
     if (invite.status === "SUBMITTED")
       return res.status(403).json({ message: "Already submitted" });
 
-    let score = 0;
+    const categoryScore = {};
+    let totalScore = 0;
 
-    for (const id of Object.keys(answers)) {
+    for (const qid of Object.keys(answers)) {
       const q = await pool.query(
-        "SELECT correct_answer FROM questions WHERE id=$1",
-        [id]
+        "SELECT correct_answer, category FROM questions WHERE id=$1",
+        [qid]
       );
 
-      if (q.rows.length && q.rows[0].correct_answer === answers[id]) {
-        score++;
+      if (!q.rows.length) continue;
+
+      const { correct_answer, category } = q.rows[0];
+
+      if (!categoryScore[category]) {
+        categoryScore[category] = { correct: 0, total: 0 };
+      }
+
+      categoryScore[category].total++;
+
+      if (correct_answer === answers[qid]) {
+        categoryScore[category].correct++;
+        totalScore++;
       }
     }
 
     await pool.query(
       `
-      INSERT INTO test_results (invitation_id, answers, score)
-      VALUES ($1,$2,$3)
+      INSERT INTO test_results (candidate_id, invitation_id, answers, score, category_score)
+      VALUES ($1,$2,$3,$4,$5)
       `,
-      [invite.id, JSON.stringify(answers), score]
+      [
+        invite.candidate_id,
+        invite.id,
+        JSON.stringify(answers),
+        totalScore,
+        JSON.stringify(categoryScore),
+      ]
     );
 
     await pool.query(
@@ -126,10 +146,10 @@ router.post("/submit", async (req, res) => {
       [invite.id]
     );
 
-    res.json({ message: "Submitted", score });
+    res.json({ message: "Submitted", score: totalScore });
   } catch (err) {
     console.error("SUBMIT ERROR:", err);
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({ message: err.message });
   }
 });
 
