@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import api from "../services/api";
 
@@ -6,49 +6,11 @@ export default function Test() {
   const [params] = useSearchParams();
   const token = params.get("token");
 
-  const containerRef = useRef(null);
-
   const [questions, setQuestions] = useState([]);
   const [answers, setAnswers] = useState({});
   const [loading, setLoading] = useState(true);
-  const [timeLeft, setTimeLeft] = useState(1800);
-  const [fullscreen, setFullscreen] = useState(false);
+  const [timeLeft, setTimeLeft] = useState(50 * 60);
   const [submitted, setSubmitted] = useState(false);
-
-  /* ================= FULLSCREEN ================= */
-  const checkFullscreen = () => {
-    const fs =
-      document.fullscreenElement ||
-      document.webkitFullscreenElement ||
-      document.mozFullScreenElement ||
-      document.msFullscreenElement;
-
-    setFullscreen(!!fs);
-  };
-
-  const enterFullscreen = async () => {
-    const el = containerRef.current || document.documentElement;
-    try {
-      if (el.requestFullscreen) await el.requestFullscreen();
-      else if (el.webkitRequestFullscreen) await el.webkitRequestFullscreen();
-      else if (el.mozRequestFullScreen) await el.mozRequestFullScreen();
-      else if (el.msRequestFullscreen) await el.msRequestFullscreen();
-      setTimeout(checkFullscreen, 300);
-    } catch (err) {
-      alert("Browser blocked fullscreen");
-    }
-  };
-
-  useEffect(() => {
-    document.addEventListener("fullscreenchange", checkFullscreen);
-    document.addEventListener("webkitfullscreenchange", checkFullscreen);
-    checkFullscreen();
-
-    return () => {
-      document.removeEventListener("fullscreenchange", checkFullscreen);
-      document.removeEventListener("webkitfullscreenchange", checkFullscreen);
-    };
-  }, []);
 
   /* ================= LOAD QUESTIONS ================= */
   useEffect(() => {
@@ -58,7 +20,7 @@ export default function Test() {
       .get(`/test/start?token=${token}`)
       .then((res) => {
         setQuestions(res.data.questions || []);
-        setTimeLeft(res.data.duration || 1800);
+        setTimeLeft(res.data.duration || 50 * 60);
         setLoading(false);
       })
       .catch(() => alert("Invalid test link"));
@@ -66,7 +28,7 @@ export default function Test() {
 
   /* ================= TIMER ================= */
   useEffect(() => {
-    if (!fullscreen || loading || submitted) return;
+    if (loading || submitted) return;
 
     const timer = setInterval(() => {
       setTimeLeft((t) => {
@@ -79,12 +41,11 @@ export default function Test() {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [fullscreen, loading, submitted]);
+  }, [loading, submitted]);
 
   /* ================= ANSWER SELECT ================= */
   const selectAnswer = (qid, index) => {
-    // Convert index → A/B/C/D
-    const key = String.fromCharCode(65 + index);
+    const key = String.fromCharCode(65 + index); // A/B/C/D
     setAnswers((prev) => ({ ...prev, [qid]: key }));
   };
 
@@ -106,33 +67,10 @@ export default function Test() {
     }
   };
 
-  /* ================= UI ================= */
-
-  if (!fullscreen) {
-    return (
-      <div
-        ref={containerRef}
-        style={{
-          height: "80vh",
-          display: "flex",
-          flexDirection: "column",
-          justifyContent: "center",
-          alignItems: "center",
-        }}
-      >
-        <h2>Start Test</h2>
-        <p>Click below to enter fullscreen.</p>
-        <button onClick={enterFullscreen} style={{ padding: "14px 40px" }}>
-          Start Test
-        </button>
-      </div>
-    );
-  }
-
   if (loading) return <p>Loading...</p>;
 
   return (
-    <div ref={containerRef} style={{ padding: 30 }}>
+    <div style={{ padding: 30, maxWidth: 900, margin: "0 auto" }}>
       <h3>
         Time Left: {Math.floor(timeLeft / 60)}:
         {(timeLeft % 60).toString().padStart(2, "0")}
