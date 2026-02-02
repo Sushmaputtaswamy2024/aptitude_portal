@@ -30,20 +30,19 @@ router.get("/start", async (req, res) => {
     if (invite.status === "SUBMITTED")
       return res.status(403).json({ message: "Already submitted" });
 
+    /* ===== Assign questions ONCE per candidate ===== */
     const existing = await pool.query(
       "SELECT 1 FROM test_questions WHERE invitation_id=$1 LIMIT 1",
       [invite.id]
     );
 
-    if (!existing.rows.length) {
+    if (existing.rows.length === 0) {
+      // Always pick 50 random questions (reuse allowed across candidates)
       const qs = await pool.query(`
-SELECT id
-FROM questions
-WHERE id NOT IN (
-  SELECT question_id FROM test_questions
-)
-ORDER BY RANDOM()
-LIMIT 50;
+        SELECT id
+        FROM questions
+        ORDER BY RANDOM()
+        LIMIT 50
       `);
 
       for (const q of qs.rows) {
@@ -59,12 +58,13 @@ LIMIT 50;
       );
     }
 
+    /* ===== Load assigned questions ===== */
     const result = await pool.query(
       `
-      SELECT q.id,q.question,q.options,q.category
+      SELECT q.id, q.question, q.options, q.category
       FROM test_questions tq
-      JOIN questions q ON q.id=tq.question_id
-      WHERE tq.invitation_id=$1
+      JOIN questions q ON q.id = tq.question_id
+      WHERE tq.invitation_id = $1
       ORDER BY tq.id
       `,
       [invite.id]
@@ -94,7 +94,7 @@ router.post("/submit", async (req, res) => {
       `
       SELECT i.*, c.id AS candidate_id
       FROM invitations i
-      JOIN candidates c ON c.id=i.candidate_id
+      JOIN candidates c ON c.id = i.candidate_id
       WHERE token=$1
       `,
       [token]
@@ -108,8 +108,8 @@ router.post("/submit", async (req, res) => {
     if (invite.status === "SUBMITTED")
       return res.status(403).json({ message: "Already submitted" });
 
-    const categoryScore = {};
     let totalScore = 0;
+    const categoryScore = {};
 
     for (const qid of Object.keys(answers)) {
       const q = await pool.query(
