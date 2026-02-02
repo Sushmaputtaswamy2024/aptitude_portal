@@ -3,7 +3,7 @@ import { useParams } from "react-router-dom";
 import api from "../services/api";
 
 export default function Results() {
-  const { id } = useParams(); // candidateId
+  const { id } = useParams();
 
   const [candidate, setCandidate] = useState(null);
   const [summary, setSummary] = useState([]);
@@ -12,13 +12,15 @@ export default function Results() {
 
   /* ================= LOAD RESULTS ================= */
   useEffect(() => {
+    if (!id) return;
+
     setLoading(true);
     setError("");
 
     api
-      .get(`/api/admin/results/${id}`)
+      .get(`/admin/results/${id}`)
       .then((res) => {
-        setCandidate(res.data.candidate || null);
+        setCandidate(res.data.candidate);
         setSummary(res.data.summary || []);
       })
       .catch((err) => {
@@ -28,36 +30,20 @@ export default function Results() {
       .finally(() => setLoading(false));
   }, [id]);
 
-  /* ================= CALCULATIONS ================= */
-  const totalCorrect = summary.reduce((s, c) => s + c.correct, 0);
-  const totalQuestions = summary.reduce((s, c) => s + c.total, 0);
+  if (loading) return <p style={{ padding: 30 }}>Loading results...</p>;
+  if (error) return <p style={{ padding: 30, color: "red" }}>{error}</p>;
 
+  const totalCorrect = summary.reduce((a, b) => a + b.correct, 0);
+  const totalQuestions = summary.reduce((a, b) => a + b.total, 0);
   const percentage =
     totalQuestions > 0
       ? ((totalCorrect / totalQuestions) * 100).toFixed(1)
       : 0;
 
-  /* ================= STATES ================= */
-  if (loading) {
-    return <p style={{ marginTop: 20 }}>Loading results...</p>;
-  }
-
-  if (error) {
-    return (
-      <p style={{ marginTop: 20, color: "#b91c1c" }}>
-        {error}
-      </p>
-    );
-  }
-
   return (
     <div style={{ padding: 24, maxWidth: 900, margin: "0 auto" }}>
       <h2>Candidate Results</h2>
-      <p style={{ color: "#6b7280" }}>
-        Category-wise performance summary
-      </p>
 
-      {/* ================= CANDIDATE INFO ================= */}
       {candidate && (
         <div style={infoCard}>
           <div>
@@ -72,7 +58,6 @@ export default function Results() {
         </div>
       )}
 
-      {/* ================= OVERALL SCORE ================= */}
       <div style={overallCard}>
         <div>
           <strong>Total Score</strong>
@@ -94,7 +79,6 @@ export default function Results() {
         </div>
       </div>
 
-      {/* ================= CATEGORY RESULTS ================= */}
       <h3 style={{ marginTop: 30 }}>Category-wise Performance</h3>
 
       {summary.length === 0 && (
@@ -102,7 +86,7 @@ export default function Results() {
       )}
 
       {summary.map((item, index) => {
-        const catPercent =
+        const pct =
           item.total > 0
             ? ((item.correct / item.total) * 100).toFixed(1)
             : 0;
@@ -120,16 +104,13 @@ export default function Results() {
               <div
                 style={{
                   ...progressFill,
-                  width: `${catPercent}%`,
-                  background:
-                    catPercent >= 60 ? "#2e7d32" : "#c62828",
+                  width: `${pct}%`,
+                  background: pct >= 60 ? "#2e7d32" : "#c62828",
                 }}
               />
             </div>
 
-            <small style={{ color: "#6b7280" }}>
-              {catPercent}% correct
-            </small>
+            <small style={{ color: "#6b7280" }}>{pct}% correct</small>
           </div>
         );
       })}
@@ -179,7 +160,6 @@ const scoreBadge = {
   padding: "4px 10px",
   borderRadius: 10,
   fontSize: 13,
-  fontWeight: 500,
 };
 
 const progressBar = {
