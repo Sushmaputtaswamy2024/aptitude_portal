@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useEffect, useRef, useState } from "react";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import api from "../services/api";
 
 export default function Test() {
   const [params] = useSearchParams();
+  const navigate = useNavigate();
   const token = params.get("token");
 
   const [questions, setQuestions] = useState([]);
@@ -11,6 +12,9 @@ export default function Test() {
   const [loading, setLoading] = useState(true);
   const [timeLeft, setTimeLeft] = useState(50 * 60);
   const [submitted, setSubmitted] = useState(false);
+
+  // prevents double submit
+  const submittingRef = useRef(false);
 
   /* ================= LOAD QUESTIONS ================= */
   useEffect(() => {
@@ -33,7 +37,7 @@ export default function Test() {
     const timer = setInterval(() => {
       setTimeLeft((t) => {
         if (t <= 1) {
-          submitTest();
+          handleSubmit(true);
           return 0;
         }
         return t - 1;
@@ -50,9 +54,10 @@ export default function Test() {
   };
 
   /* ================= SUBMIT ================= */
-  const submitTest = async () => {
-    if (submitted) return;
+  const handleSubmit = async (auto = false) => {
+    if (submittingRef.current) return;
 
+    submittingRef.current = true;
     setSubmitted(true);
 
     try {
@@ -61,9 +66,13 @@ export default function Test() {
         answers,
       });
 
-      alert("Test submitted successfully");
+      if (!auto) alert("Test submitted successfully");
+
+      navigate("/thank-you");
     } catch {
       alert("Submit failed");
+      submittingRef.current = false;
+      setSubmitted(false);
     }
   };
 
@@ -98,7 +107,11 @@ export default function Test() {
         </div>
       ))}
 
-      <button onClick={submitTest} style={{ marginTop: 40 }}>
+      <button
+        onClick={() => handleSubmit(false)}
+        disabled={submitted}
+        style={{ marginTop: 40 }}
+      >
         Submit
       </button>
     </div>
