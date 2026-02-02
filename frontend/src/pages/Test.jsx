@@ -1,23 +1,21 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import api from "../services/api";
-import BrandLayout from "../components/BrandLayout";
 
 export default function Test() {
   const [params] = useSearchParams();
   const token = params.get("token");
 
-  const rootRef = useRef(null);
+  const containerRef = useRef(null);
 
   const [questions, setQuestions] = useState([]);
   const [answers, setAnswers] = useState({});
   const [loading, setLoading] = useState(true);
-  const [timeLeft, setTimeLeft] = useState(30 * 60);
-  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [timeLeft, setTimeLeft] = useState(1800);
+  const [fullscreen, setFullscreen] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
   /* ================= FULLSCREEN ================= */
-
   const checkFullscreen = () => {
     const fs =
       document.fullscreenElement ||
@@ -25,13 +23,25 @@ export default function Test() {
       document.mozFullScreenElement ||
       document.msFullscreenElement;
 
-    setIsFullscreen(!!fs);
+    setFullscreen(!!fs);
+  };
+
+  const enterFullscreen = async () => {
+    const el = containerRef.current || document.documentElement;
+    try {
+      if (el.requestFullscreen) await el.requestFullscreen();
+      else if (el.webkitRequestFullscreen) await el.webkitRequestFullscreen();
+      else if (el.mozRequestFullScreen) await el.mozRequestFullScreen();
+      else if (el.msRequestFullscreen) await el.msRequestFullscreen();
+      setTimeout(checkFullscreen, 300);
+    } catch (err) {
+      alert("Browser blocked fullscreen");
+    }
   };
 
   useEffect(() => {
     document.addEventListener("fullscreenchange", checkFullscreen);
     document.addEventListener("webkitfullscreenchange", checkFullscreen);
-
     checkFullscreen();
 
     return () => {
@@ -40,24 +50,7 @@ export default function Test() {
     };
   }, []);
 
-  const enterFullscreen = async () => {
-    const el = rootRef.current || document.documentElement;
-
-    try {
-      if (el.requestFullscreen) await el.requestFullscreen();
-      else if (el.webkitRequestFullscreen) await el.webkitRequestFullscreen();
-      else if (el.mozRequestFullScreen) await el.mozRequestFullScreen();
-      else if (el.msRequestFullscreen) await el.msRequestFullscreen();
-
-      setTimeout(checkFullscreen, 300);
-    } catch (e) {
-      alert("Browser blocked fullscreen. Please allow fullscreen.");
-      console.error(e);
-    }
-  };
-
   /* ================= LOAD QUESTIONS ================= */
-
   useEffect(() => {
     if (!token) return;
 
@@ -72,9 +65,8 @@ export default function Test() {
   }, [token]);
 
   /* ================= TIMER ================= */
-
   useEffect(() => {
-    if (!isFullscreen || loading || submitted) return;
+    if (!fullscreen || loading || submitted) return;
 
     const timer = setInterval(() => {
       setTimeLeft((t) => {
@@ -87,71 +79,60 @@ export default function Test() {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [isFullscreen, loading, submitted]);
+  }, [fullscreen, loading, submitted]);
 
-  /* ================= ANSWERS ================= */
-
-  const selectAnswer = (qid, val) => {
-    setAnswers((p) => ({ ...p, [qid]: val }));
+  /* ================= ANSWER SELECT ================= */
+  const selectAnswer = (qid, index) => {
+    // Convert index → A/B/C/D
+    const key = String.fromCharCode(65 + index);
+    setAnswers((prev) => ({ ...prev, [qid]: key }));
   };
 
   /* ================= SUBMIT ================= */
-
   const submitTest = async () => {
     if (submitted) return;
+
     setSubmitted(true);
 
     try {
-      await api.post("/test/submit", { token, answers });
-      alert("Test submitted");
+      await api.post("/test/submit", {
+        token,
+        answers,
+      });
+
+      alert("Test submitted successfully");
     } catch {
       alert("Submit failed");
     }
   };
 
-  /* ================= FULLSCREEN BLOCK ================= */
+  /* ================= UI ================= */
 
-  if (!isFullscreen) {
+  if (!fullscreen) {
     return (
-      <BrandLayout>
-        <div
-          ref={rootRef}
-          style={{
-            height: "80vh",
-            display: "flex",
-            flexDirection: "column",
-            justifyContent: "center",
-            alignItems: "center",
-          }}
-        >
-          <h2>Start Test</h2>
-          <p>Click below to enter fullscreen.</p>
-
-          <button
-            onClick={enterFullscreen}
-            style={{ padding: "14px 40px", fontSize: 18 }}
-          >
-            Start Test
-          </button>
-        </div>
-      </BrandLayout>
+      <div
+        ref={containerRef}
+        style={{
+          height: "80vh",
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "center",
+          alignItems: "center",
+        }}
+      >
+        <h2>Start Test</h2>
+        <p>Click below to enter fullscreen.</p>
+        <button onClick={enterFullscreen} style={{ padding: "14px 40px" }}>
+          Start Test
+        </button>
+      </div>
     );
   }
 
-  /* ================= LOADING ================= */
-
-  if (loading) {
-    return (
-      <BrandLayout>
-        <p>Loading...</p>
-      </BrandLayout>
-    );
-  }
-
-  /* ================= TEST ================= */
+  if (loading) return <p>Loading...</p>;
 
   return (
-    <BrandLayout>
+    <div ref={containerRef} style={{ padding: 30 }}>
       <h3>
         Time Left: {Math.floor(timeLeft / 60)}:
         {(timeLeft % 60).toString().padStart(2, "0")}
@@ -163,16 +144,16 @@ export default function Test() {
             {i + 1}. {q.question}
           </strong>
 
-          {q.options.map((o, k) => (
-            <div key={k}>
+          {q.options.map((opt, idx) => (
+            <div key={idx}>
               <label>
                 <input
                   type="radio"
                   name={`q${q.id}`}
-                  checked={answers[q.id] === o}
-                  onChange={() => selectAnswer(q.id, o)}
+                  checked={answers[q.id] === String.fromCharCode(65 + idx)}
+                  onChange={() => selectAnswer(q.id, idx)}
                 />
-                {o}
+                {opt}
               </label>
             </div>
           ))}
@@ -182,6 +163,6 @@ export default function Test() {
       <button onClick={submitTest} style={{ marginTop: 40 }}>
         Submit
       </button>
-    </BrandLayout>
+    </div>
   );
 }
