@@ -7,182 +7,93 @@ export default function Results() {
 
   const [candidate, setCandidate] = useState(null);
   const [summary, setSummary] = useState([]);
+  const [score, setScore] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  /* ================= LOAD RESULTS ================= */
   useEffect(() => {
     if (!id) return;
 
     setLoading(true);
-    setError("");
 
     api
       .get(`/admin/results/${id}`)
       .then((res) => {
         setCandidate(res.data.candidate);
         setSummary(res.data.summary || []);
+        setScore(res.data.score || 0);
       })
-      .catch((err) => {
-        console.error(err);
-        setError("Unable to load results");
-      })
+      .catch(() => setError("Unable to load results"))
       .finally(() => setLoading(false));
   }, [id]);
 
-  if (loading) return <p style={{ padding: 30 }}>Loading results...</p>;
-  if (error) return <p style={{ padding: 30, color: "red" }}>{error}</p>;
+  if (loading) return <p style={{ padding: 40 }}>Loading...</p>;
+  if (error) return <p style={{ padding: 40, color: "red" }}>{error}</p>;
 
-  const totalCorrect = summary.reduce((a, b) => a + b.correct, 0);
-  const totalQuestions = summary.reduce((a, b) => a + b.total, 0);
-  const percentage =
+  /* ================= CALCULATIONS ================= */
+
+  const totalQuestions = summary.reduce((s, c) => s + c.total, 0);
+  const totalCorrect = summary.reduce((s, c) => s + c.correct, 0);
+
+  const overallPercent =
     totalQuestions > 0
-      ? ((totalCorrect / totalQuestions) * 100).toFixed(1)
+      ? Math.round((totalCorrect / totalQuestions) * 100)
       : 0;
 
+  const result = overallPercent >= 50 ? "Passed" : "Failed";
+
+  // For now fixed (later we can fetch from DB)
+  const maxScore = totalQuestions;
+  const totalTimeTaken = "—"; // optional: later from DB
+
   return (
-    <div style={{ padding: 24, maxWidth: 900, margin: "0 auto" }}>
-      <h2>Candidate Results</h2>
+    <div style={page}>
+      <h2>Assessment Score Card</h2>
 
       {candidate && (
-        <div style={infoCard}>
-          <div>
-            <strong>Name</strong>
-            <div>{candidate.name}</div>
-          </div>
-
-          <div>
-            <strong>Email</strong>
-            <div>{candidate.email}</div>
-          </div>
-        </div>
+        <p style={{ marginTop: 20 }}>
+          <strong>Name :</strong> {candidate.name}
+        </p>
       )}
 
-      <div style={overallCard}>
-        <div>
-          <strong>Total Score</strong>
-          <div style={bigText}>
-            {totalCorrect} / {totalQuestions}
-          </div>
-        </div>
+      <div style={{ marginTop: 25 }}>
+        {summary.map((c, i) => {
+          const pct =
+            c.total > 0 ? Math.round((c.correct / c.total) * 100) : 0;
 
-        <div>
-          <strong>Percentage</strong>
-          <div
-            style={{
-              ...bigText,
-              color: percentage >= 60 ? "#2e7d32" : "#c62828",
-            }}
-          >
-            {percentage}%
-          </div>
-        </div>
+          return (
+            <p key={i}>
+              Total percentage for {c.category} : {pct}%
+            </p>
+          );
+        })}
       </div>
 
-      <h3 style={{ marginTop: 30 }}>Category-wise Performance</h3>
+      <p style={{ marginTop: 15 }}>
+        <strong>Result :</strong> {result}
+      </p>
 
-      {summary.length === 0 && (
-        <div style={emptyStyle}>No results available</div>
-      )}
+      <p>
+        <strong>Maximum score :</strong> {maxScore}
+      </p>
 
-      {summary.map((item, index) => {
-        const pct =
-          item.total > 0
-            ? ((item.correct / item.total) * 100).toFixed(1)
-            : 0;
+      <p>
+        <strong>Total scored :</strong> {score}
+      </p>
 
-        return (
-          <div key={index} style={categoryCard}>
-            <div style={categoryHeader}>
-              <strong>{item.category}</strong>
-              <span style={scoreBadge}>
-                {item.correct} / {item.total}
-              </span>
-            </div>
-
-            <div style={progressBar}>
-              <div
-                style={{
-                  ...progressFill,
-                  width: `${pct}%`,
-                  background: pct >= 60 ? "#2e7d32" : "#c62828",
-                }}
-              />
-            </div>
-
-            <small style={{ color: "#6b7280" }}>{pct}% correct</small>
-          </div>
-        );
-      })}
+      <p>
+        <strong>Total time taken :</strong> {totalTimeTaken}
+      </p>
     </div>
   );
 }
 
 /* ================= STYLES ================= */
 
-const infoCard = {
-  display: "flex",
-  gap: 40,
-  background: "#ffffff",
-  padding: 18,
-  borderRadius: 12,
-  marginTop: 20,
-  boxShadow: "0 4px 16px rgba(0,0,0,0.06)",
-};
-
-const overallCard = {
-  display: "flex",
-  justifyContent: "space-between",
-  background: "#f9fafb",
-  padding: 20,
-  borderRadius: 12,
-  marginTop: 20,
-  boxShadow: "0 4px 14px rgba(0,0,0,0.05)",
-};
-
-const categoryCard = {
-  background: "#ffffff",
-  borderRadius: 12,
-  padding: 16,
-  marginTop: 14,
-  boxShadow: "0 4px 14px rgba(0,0,0,0.06)",
-};
-
-const categoryHeader = {
-  display: "flex",
-  justifyContent: "space-between",
-  alignItems: "center",
-  marginBottom: 10,
-};
-
-const scoreBadge = {
-  background: "#e5e7eb",
-  padding: "4px 10px",
-  borderRadius: 10,
-  fontSize: 13,
-};
-
-const progressBar = {
-  width: "100%",
-  height: 8,
-  background: "#e5e7eb",
-  borderRadius: 6,
-  overflow: "hidden",
-  marginBottom: 6,
-};
-
-const progressFill = {
-  height: "100%",
-  borderRadius: 6,
-};
-
-const bigText = {
-  fontSize: 22,
-  fontWeight: 600,
-};
-
-const emptyStyle = {
-  textAlign: "center",
-  padding: 20,
-  color: "#6b7280",
+const page = {
+  padding: 50,
+  maxWidth: 700,
+  margin: "0 auto",
+  fontSize: 16,
+  lineHeight: "1.8",
 };
