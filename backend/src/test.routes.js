@@ -9,12 +9,15 @@ router.get("/start", async (req, res) => {
 
     if (!token) return res.status(400).json({ message: "Token required" });
 
+    // ✅ Always take latest matching invitation
     const inviteRes = await pool.query(
       `
       SELECT i.*, c.id AS candidate_id
       FROM invitations i
       JOIN candidates c ON c.id = i.candidate_id
-      WHERE token=$1
+      WHERE i.token=$1
+      ORDER BY i.invited_at DESC
+      LIMIT 1
       `,
       [token]
     );
@@ -30,6 +33,7 @@ router.get("/start", async (req, res) => {
     if (invite.status === "SUBMITTED")
       return res.status(403).json({ message: "Already submitted" });
 
+    /* ===== Assign questions ONCE ===== */
     const existing = await pool.query(
       "SELECT 1 FROM test_questions WHERE invitation_id=$1 LIMIT 1",
       [invite.id]
@@ -76,7 +80,7 @@ router.get("/start", async (req, res) => {
   }
 });
 
-/* ================= SUBMIT TEST ================= */
+/* ================= SUBMIT ================= */
 router.post("/submit", async (req, res) => {
   try {
     const { token, answers } = req.body;
@@ -89,7 +93,9 @@ router.post("/submit", async (req, res) => {
       SELECT i.*, c.id AS candidate_id
       FROM invitations i
       JOIN candidates c ON c.id = i.candidate_id
-      WHERE token=$1
+      WHERE i.token=$1
+      ORDER BY i.invited_at DESC
+      LIMIT 1
       `,
       [token]
     );
@@ -98,6 +104,9 @@ router.post("/submit", async (req, res) => {
       return res.status(400).json({ message: "Invalid token" });
 
     const invite = inviteRes.rows[0];
+
+    if (invite.status === "SUBMITTED")
+      return res.status(403).json({ message: "Already submitted" });
 
     let totalScore = 0;
     const categoryScore = {};
@@ -112,9 +121,8 @@ router.post("/submit", async (req, res) => {
 
       const { correct_answer, category } = q.rows[0];
 
-      if (!categoryScore[category]) {
+      if (!categoryScore[category])
         categoryScore[category] = { correct: 0, total: 0 };
-      }
 
       categoryScore[category].total++;
 
@@ -124,13 +132,6 @@ router.post("/submit", async (req, res) => {
       }
     }
 
-    /* 🔥 DELETE OLD RESULTS (same candidate) */
-    await pool.query(
-      "DELETE FROM test_results WHERE candidate_id=$1",
-      [invite.candidate_id]
-    );
-
-    /* ✅ INSERT NEW RESULT */
     await pool.query(
       `
       INSERT INTO test_results (candidate_id, invitation_id, answers, score, category_score)
