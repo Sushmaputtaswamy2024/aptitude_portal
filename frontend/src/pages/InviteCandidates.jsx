@@ -1,15 +1,17 @@
 import { useState } from "react";
 import api from "../services/api";
-console.log("INVITATION PAGE — FRONTEND VERSION 24 JAN — LIVE");
+
 export default function InviteCandidates() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [message, setMessage] = useState("");
+  const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const sendInvite = async (e) => {
     e.preventDefault();
     setMessage("");
+    setSuccess(false);
 
     if (!name.trim() || !email.trim()) {
       setMessage("Please enter candidate name and email.");
@@ -24,10 +26,13 @@ export default function InviteCandidates() {
         email: email.trim(),
       });
 
+      setSuccess(true);
       setMessage(`Invitation sent successfully to ${email}`);
+
       setName("");
       setEmail("");
     } catch (err) {
+      setSuccess(false);
       setMessage(
         err?.response?.data?.message ||
           "Failed to send invitation. Please try again."
@@ -39,16 +44,11 @@ export default function InviteCandidates() {
 
   return (
     <>
-    <p style={{ color: "red", fontWeight: "bold" }}>
-  FRONTEND UPDATED — INVITATION PAGE — 24 JAN
-</p>
-
       <h2>Invite Candidates</h2>
       <p style={{ marginTop: 6 }}>
         Send aptitude test invitations to candidates via email.
       </p>
 
-      {/* ===== CARD ===== */}
       <div style={cardStyle}>
         <form onSubmit={sendInvite}>
           <div style={fieldGroup}>
@@ -78,9 +78,7 @@ export default function InviteCandidates() {
               style={{
                 marginTop: 10,
                 fontSize: 14,
-                color: message.includes("successfully")
-                  ? "#2e7d32"
-                  : "#b91c1c",
+                color: success ? "#2e7d32" : "#b91c1c",
               }}
             >
               {message}
@@ -130,7 +128,7 @@ const inputStyle = {
   width: "100%",
   padding: "10px 12px",
   border: "1px solid #d1d5db",
-  borderRadius: 4,
+  borderRadius: 6,
   fontSize: 14,
 };
 

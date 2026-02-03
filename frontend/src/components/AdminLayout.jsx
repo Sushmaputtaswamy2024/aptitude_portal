@@ -1,43 +1,52 @@
-  import { Link, useNavigate, Outlet } from "react-router-dom";
-  import { useState } from "react";
+import { Link, useNavigate, Outlet } from "react-router-dom";
+import { useState } from "react";
 
-  export default function AdminLayout() {
-    const navigate = useNavigate();
-    const [open, setOpen] = useState(false);
+export default function AdminLayout() {
+  const navigate = useNavigate();
+  const [open, setOpen] = useState(false);
 
-    const logout = () => {
-      localStorage.removeItem("adminToken");
-      navigate("/admin/login");
-    };
+  const logout = () => {
+    localStorage.removeItem("adminToken");
+    navigate("/admin/login");
+  };
 
-    return (
-      <div className="admin-layout">
-        {/* Mobile header */}
-        <header className="admin-mobile-header">
-          <div />
-          <img src="/logo.png" alt="VIndia" className="admin-logo-mobile" />
-          <button className="hamburger" onClick={() => setOpen(true)}>☰</button>
-        </header>
+  return (
+    <div className="admin-layout">
+      {/* Mobile header */}
+      <header className="admin-mobile-header">
+        <div />
+        <img src="/logo.png" alt="VIndia" className="admin-logo-mobile" />
+        <button className="hamburger" onClick={() => setOpen(true)}>
+          ☰
+        </button>
+      </header>
 
-        {/* Sidebar */}
-        <aside className={`admin-sidebar ${open ? "open" : ""}`}>
-          <img src="/logo.png" alt="VIndia" className="admin-logo" />
+      {/* Sidebar */}
+      <aside className={`admin-sidebar ${open ? "open" : ""}`}>
+        <img src="/logo.png" alt="VIndia" className="admin-logo" />
 
-          <nav className="admin-nav" onClick={() => setOpen(false)}>
-            <Link to="/admin/dashboard">Dashboard</Link>
-            <Link to="/admin/invite">Invite</Link>
-            <Link to="/admin/status">Status</Link>
-          </nav>
+        <nav className="admin-nav" onClick={() => setOpen(false)}>
+          <Link to="/admin/dashboard">Dashboard</Link>
+          <Link to="/admin/invite">Invite</Link>
+          <Link to="/admin/status">Status</Link>
 
-          <button onClick={logout} className="logout-btn">Logout</button>
-        </aside>
+          {/* ✅ OPTIONAL Results placeholder */}
+          <span style={{ opacity: 0.5, cursor: "default" }}>
+            Results (use Status)
+          </span>
+        </nav>
 
-        {open && <div className="admin-overlay" onClick={() => setOpen(false)} />}
+        <button onClick={logout} className="logout-btn">
+          Logout
+        </button>
+      </aside>
 
-        {/* CONTENT */}
-        <main className="admin-content">
-          <Outlet />
-        </main>
-      </div>
-    );
-  }
+      {open && <div className="admin-overlay" onClick={() => setOpen(false)} />}
+
+      {/* CONTENT */}
+      <main className="admin-content">
+        <Outlet />
+      </main>
+    </div>
+  );
+}

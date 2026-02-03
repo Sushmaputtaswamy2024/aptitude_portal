@@ -15,13 +15,10 @@ import ProtectedRoute from "./components/ProtectedRoute";
 export default function App() {
   return (
     <Routes>
-      {/* Default */}
       <Route path="/" element={<Navigate to="/admin/login" />} />
 
-      {/* Admin Login */}
       <Route path="/admin/login" element={<AdminLogin />} />
 
-      {/* ================= ADMIN PROTECTED ================= */}
       <Route
         path="/admin"
         element={
@@ -33,20 +30,13 @@ export default function App() {
         <Route path="dashboard" element={<Dashboard />} />
         <Route path="invite" element={<InviteCandidates />} />
         <Route path="status" element={<CandidateStatus />} />
-
-        {/* Admin Results */}
         <Route path="results/:id" element={<Results />} />
       </Route>
 
-      {/* ================= CANDIDATE PUBLIC ================= */}
       <Route path="/verify" element={<Verify />} />
       <Route path="/test" element={<Test />} />
       <Route path="/thank-you" element={<ThankYou />} />
 
-      {/* Candidate Results (PUBLIC) */}
-      <Route path="/results/:id" element={<Results />} />
-
-      {/* Fallback */}
       <Route path="*" element={<Navigate to="/" />} />
     </Routes>
   );

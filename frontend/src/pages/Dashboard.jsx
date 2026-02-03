@@ -17,7 +17,20 @@ export default function Dashboard() {
     api
       .get("/admin/status")
       .then((res) => {
-        const data = res.data || [];
+        const raw = res.data || [];
+
+        // ✅ Deduplicate by candidate_id (keep latest only)
+        const map = {};
+        raw.forEach((r) => {
+          if (
+            !map[r.candidate_id] ||
+            new Date(r.last_updated) > new Date(map[r.candidate_id].last_updated)
+          ) {
+            map[r.candidate_id] = r;
+          }
+        });
+
+        const data = Object.values(map);
 
         setStats({
           invited: data.filter((c) => c.status === "INVITED").length,
@@ -52,7 +65,7 @@ export default function Dashboard() {
 
       {!loading && (
         <>
-          {/* ===== SUMMARY STATS ===== */}
+          {/* ===== SUMMARY ===== */}
           <div style={cardGrid}>
             <StatCard title="Invited" value={stats.invited} />
             <StatCard title="Email Verified" value={stats.verified} />
@@ -70,20 +83,16 @@ export default function Dashboard() {
                 description="Send aptitude test invitations"
                 link="/admin/invite"
               />
+
               <ActionCard
                 title="Candidate Status"
-                description="Track candidate progress"
+                description="View results & progress"
                 link="/admin/status"
-              />
-              <ActionCard
-                title="View Results"
-                description="Review completed assessments"
-                link="/admin/results"
               />
             </div>
           </div>
 
-          {/* ===== RECENT ACTIVITY ===== */}
+          {/* ===== RECENT ===== */}
           <div style={{ marginTop: 60 }}>
             <h3>Recent Activity</h3>
 

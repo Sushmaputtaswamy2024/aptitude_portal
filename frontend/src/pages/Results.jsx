@@ -12,10 +12,6 @@ export default function Results() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    if (!id) return;
-
-    setLoading(true);
-
     api
       .get(`/admin/results/${id}`)
       .then((res) => {
@@ -30,70 +26,104 @@ export default function Results() {
   if (loading) return <p style={{ padding: 40 }}>Loading...</p>;
   if (error) return <p style={{ padding: 40, color: "red" }}>{error}</p>;
 
-  /* ================= CALCULATIONS ================= */
+  const totalQuestions = summary.reduce((a, b) => a + b.total, 0);
+  const totalCorrect = summary.reduce((a, b) => a + b.correct, 0);
 
-  const totalQuestions = summary.reduce((s, c) => s + c.total, 0);
-  const totalCorrect = summary.reduce((s, c) => s + c.correct, 0);
-
-  const overallPercent =
+  const percent =
     totalQuestions > 0
       ? Math.round((totalCorrect / totalQuestions) * 100)
       : 0;
 
-  const result = overallPercent >= 50 ? "Passed" : "Failed";
-
-  // For now fixed (later we can fetch from DB)
-  const maxScore = totalQuestions;
-  const totalTimeTaken = "—"; // optional: later from DB
+  const result = percent >= 50 ? "PASSED" : "FAILED";
 
   return (
     <div style={page}>
       <h2>Assessment Score Card</h2>
 
       {candidate && (
-        <p style={{ marginTop: 20 }}>
-          <strong>Name :</strong> {candidate.name}
-        </p>
+        <div style={card}>
+          <p><strong>Name:</strong> {candidate.name}</p>
+          <p><strong>Email:</strong> {candidate.email}</p>
+        </div>
       )}
 
-      <div style={{ marginTop: 25 }}>
-        {summary.map((c, i) => {
-          const pct =
-            c.total > 0 ? Math.round((c.correct / c.total) * 100) : 0;
+      <div style={{ ...card, display: "flex", justifyContent: "space-between" }}>
+        <div>
+          <strong>Total Score</strong>
+          <h3>{score} / {totalQuestions}</h3>
+        </div>
 
-          return (
-            <p key={i}>
-              Total percentage for {c.category} : {pct}%
-            </p>
-          );
-        })}
+        <div>
+          <strong>Percentage</strong>
+          <h3 style={{ color: percent >= 50 ? "green" : "red" }}>{percent}%</h3>
+        </div>
+
+        <div>
+          <strong>Result</strong>
+          <h3 style={{ color: percent >= 50 ? "green" : "red" }}>{result}</h3>
+        </div>
       </div>
 
-      <p style={{ marginTop: 15 }}>
-        <strong>Result :</strong> {result}
-      </p>
+      <h3 style={{ marginTop: 30 }}>Category Breakdown</h3>
 
-      <p>
-        <strong>Maximum score :</strong> {maxScore}
-      </p>
+      {summary.map((c, i) => {
+        const p =
+          c.total > 0 ? Math.round((c.correct / c.total) * 100) : 0;
 
-      <p>
-        <strong>Total scored :</strong> {score}
-      </p>
+        return (
+          <div key={i} style={card}>
+            <div style={row}>
+              <strong>{c.category}</strong>
+              <span>{c.correct}/{c.total}</span>
+            </div>
 
-      <p>
-        <strong>Total time taken :</strong> {totalTimeTaken}
-      </p>
+            <div style={bar}>
+              <div
+                style={{
+                  ...fill,
+                  width: `${p}%`,
+                  background: p >= 50 ? "#2e7d32" : "#c62828",
+                }}
+              />
+            </div>
+
+            <small>{p}% correct</small>
+          </div>
+        );
+      })}
     </div>
   );
 }
 
-/* ================= STYLES ================= */
+/* ===== styles ===== */
 
 const page = {
-  padding: 50,
-  maxWidth: 700,
-  margin: "0 auto",
-  fontSize: 16,
-  lineHeight: "1.8",
+  maxWidth: 900,
+  margin: "auto",
+  padding: 40,
+};
+
+const card = {
+  background: "#fff",
+  padding: 20,
+  marginTop: 15,
+  borderRadius: 10,
+  boxShadow: "0 4px 12px rgba(0,0,0,.08)",
+};
+
+const row = {
+  display: "flex",
+  justifyContent: "space-between",
+};
+
+const bar = {
+  height: 8,
+  background: "#ddd",
+  borderRadius: 5,
+  marginTop: 8,
+};
+
+const fill = {
+  height: "100%",
+  borderRadius: 5,
 };
