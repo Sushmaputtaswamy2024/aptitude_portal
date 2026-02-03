@@ -13,29 +13,28 @@ router.post("/", async (req, res) => {
     }
 
     /* ================= FIND OR CREATE CANDIDATE ================= */
-    const existingCandidate = await pool.query(
+    const existing = await pool.query(
       "SELECT id FROM candidates WHERE email=$1",
       [email]
     );
 
     let candidateId;
 
-    if (existingCandidate.rows.length > 0) {
-      candidateId = existingCandidate.rows[0].id;
+    if (existing.rows.length) {
+      candidateId = existing.rows[0].id;
     } else {
       const created = await pool.query(
-        "INSERT INTO candidates (name, email) VALUES ($1,$2) RETURNING id",
+        "INSERT INTO candidates (name,email) VALUES ($1,$2) RETURNING id",
         [name, email]
       );
       candidateId = created.rows[0].id;
     }
 
-    /* ================= EXPIRE OLD INVITES ================= */
+    /* ================= DELETE OLD ACTIVE INVITES ================= */
     await pool.query(
       `
-      UPDATE invitations
-      SET status = 'EXPIRED'
-      WHERE candidate_id = $1
+      DELETE FROM invitations
+      WHERE candidate_id=$1
       AND status IN ('INVITED','VERIFIED','STARTED')
       `,
       [candidateId]
@@ -53,7 +52,7 @@ router.post("/", async (req, res) => {
         invited_at,
         expires_at
       )
-      VALUES ($1, $2, 'INVITED', NOW(), NOW() + INTERVAL '24 hours')
+      VALUES ($1,$2,'INVITED',NOW(),NOW() + INTERVAL '24 hours')
       `,
       [candidateId, token]
     );

@@ -30,19 +30,14 @@ router.get("/start", async (req, res) => {
     if (invite.status === "SUBMITTED")
       return res.status(403).json({ message: "Already submitted" });
 
-    /* ===== Assign questions ONCE per candidate ===== */
     const existing = await pool.query(
       "SELECT 1 FROM test_questions WHERE invitation_id=$1 LIMIT 1",
       [invite.id]
     );
 
     if (existing.rows.length === 0) {
-      // Always pick 50 random questions (reuse allowed across candidates)
       const qs = await pool.query(`
-        SELECT id
-        FROM questions
-        ORDER BY RANDOM()
-        LIMIT 50
+        SELECT id FROM questions ORDER BY RANDOM() LIMIT 50
       `);
 
       for (const q of qs.rows) {
@@ -58,7 +53,6 @@ router.get("/start", async (req, res) => {
       );
     }
 
-    /* ===== Load assigned questions ===== */
     const result = await pool.query(
       `
       SELECT q.id, q.question, q.options, q.category
@@ -105,9 +99,6 @@ router.post("/submit", async (req, res) => {
 
     const invite = inviteRes.rows[0];
 
-    if (invite.status === "SUBMITTED")
-      return res.status(403).json({ message: "Already submitted" });
-
     let totalScore = 0;
     const categoryScore = {};
 
@@ -133,6 +124,13 @@ router.post("/submit", async (req, res) => {
       }
     }
 
+    /* 🔥 DELETE OLD RESULTS (same candidate) */
+    await pool.query(
+      "DELETE FROM test_results WHERE candidate_id=$1",
+      [invite.candidate_id]
+    );
+
+    /* ✅ INSERT NEW RESULT */
     await pool.query(
       `
       INSERT INTO test_results (candidate_id, invitation_id, answers, score, category_score)

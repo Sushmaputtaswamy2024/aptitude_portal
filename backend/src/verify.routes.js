@@ -28,6 +28,16 @@ router.get("/", async (req, res) => {
       });
     }
 
+    /* ✅ MARK AS VERIFIED (only once) */
+    await pool.query(
+      `
+      UPDATE invitations
+      SET status='VERIFIED', verified_at=NOW()
+      WHERE id=$1 AND status='INVITED'
+      `,
+      [invite.id]
+    );
+
     res.json({ valid: true });
   } catch (err) {
     console.error("VERIFY ERROR:", err);
@@ -36,4 +46,3 @@ router.get("/", async (req, res) => {
 });
 
 module.exports = router;
-

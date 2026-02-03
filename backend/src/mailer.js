@@ -49,14 +49,21 @@ async function sendInviteEmail(to, link) {
 
         <hr style="margin:24px 0;" />
 
-        <h4 style="color:#b91c1c;">⚠ Important Instructions</h4>
+        <h4 style="color:#374151;">Important Instructions</h4>
         <ul>
           <li>This test link is valid for 24 hours.</li>
-          <li>Complete in one sitting.</li>
-          <li>No tab switching or fullscreen exit.</li>
+          <li>Please complete the assessment in one sitting.</li>
+          <li>Ensure stable internet connection.</li>
         </ul>
 
-        <p>Best regards,<br/><strong>VIndia Infrasec Pvt Ltd</strong></p>
+        <p>
+          If you face any issues, please contact the HR team.
+        </p>
+
+        <p>
+          Best regards,<br/>
+          <strong>VIndia Infrasec Pvt Ltd</strong>
+        </p>
       </div>
       `,
     });
