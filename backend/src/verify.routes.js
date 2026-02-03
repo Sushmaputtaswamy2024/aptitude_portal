@@ -11,16 +11,23 @@ router.get("/", async (req, res) => {
 
   try {
     const inviteRes = await pool.query(
-      "SELECT * FROM invitations WHERE token=$1",
+      `
+      SELECT *
+      FROM invitations
+      WHERE token=$1
+      ORDER BY invited_at DESC
+      LIMIT 1
+      `,
       [token]
     );
 
-    if (inviteRes.rows.length === 0) {
+    if (!inviteRes.rows.length) {
       return res.status(400).json({ message: "Invalid verification link" });
     }
 
     const invite = inviteRes.rows[0];
 
+    /* ===== Expired ===== */
     if (invite.expires_at && new Date(invite.expires_at) < new Date()) {
       return res.status(410).json({
         message: "Verification link expired",
@@ -28,15 +35,24 @@ router.get("/", async (req, res) => {
       });
     }
 
-    /* ✅ MARK AS VERIFIED (only once) */
-    await pool.query(
-      `
-      UPDATE invitations
-      SET status='VERIFIED', verified_at=NOW()
-      WHERE id=$1 AND status='INVITED'
-      `,
-      [invite.id]
-    );
+    /* ===== Already submitted ===== */
+    if (invite.status === "SUBMITTED") {
+      return res.status(403).json({
+        message: "Test already completed",
+      });
+    }
+
+    /* ===== Mark verified only if invited ===== */
+    if (invite.status === "INVITED") {
+      await pool.query(
+        `
+        UPDATE invitations
+        SET status='VERIFIED', verified_at=NOW()
+        WHERE id=$1
+        `,
+        [invite.id]
+      );
+    }
 
     res.json({ valid: true });
   } catch (err) {
