@@ -2,6 +2,7 @@ import axios from "axios";
 
 const api = axios.create({
   baseURL: "https://api-aptitude.vindiainfrasec.com/api",
+  withCredentials: true,
 });
 
 api.interceptors.request.use((config) => {
