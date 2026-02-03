@@ -7,14 +7,13 @@ export default function CandidateStatus() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    api
-      .get("/admin/status")
-      .then((res) => setData(res.data || []))
-      .catch(() => alert("Failed to load candidate status"));
+    api.get("/admin/status").then((res) => {
+      setData(res.data || []);
+    });
   }, []);
 
   return (
-    <div>
+    <>
       <h2>Candidate Status</h2>
       <p style={{ marginTop: 6 }}>
         Track candidate progress through the assessment process.
@@ -39,7 +38,7 @@ export default function CandidateStatus() {
             </div>
 
             {/* VIEW RESULT */}
-            {c.status === "SUBMITTED" && (
+            {c.status !== "INVITED" && (
               <div style={{ marginTop: 14, textAlign: "right" }}>
                 <button
                   style={viewBtn}
@@ -58,7 +57,7 @@ export default function CandidateStatus() {
           <div style={emptyStyle}>No candidates found</div>
         )}
       </div>
-    </div>
+    </>
   );
 }
 
@@ -84,8 +83,9 @@ function StatusBadge({ status }) {
         borderRadius: 12,
         fontSize: 13,
         fontWeight: 500,
-        color: "#fff",
+        color: "#ffffff",
         background: badge.color,
+        whiteSpace: "nowrap",
       }}
     >
       {badge.text}
