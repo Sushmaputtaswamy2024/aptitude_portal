@@ -27,7 +27,7 @@ router.get("/", async (req, res) => {
 
     const invite = inviteRes.rows[0];
 
-    /* ===== Expired ===== */
+    // expired
     if (invite.expires_at && new Date(invite.expires_at) < new Date()) {
       return res.status(410).json({
         message: "Verification link expired",
@@ -35,19 +35,19 @@ router.get("/", async (req, res) => {
       });
     }
 
-    /* ===== Already submitted ===== */
+    // already submitted
     if (invite.status === "SUBMITTED") {
       return res.status(403).json({
         message: "Test already completed",
       });
     }
 
-    /* ===== Mark verified only if invited ===== */
+    // ✅ mark verified (NO verified_at column)
     if (invite.status === "INVITED") {
       await pool.query(
         `
         UPDATE invitations
-        SET status='VERIFIED', verified_at=NOW()
+        SET status='VERIFIED'
         WHERE id=$1
         `,
         [invite.id]
