@@ -37,8 +37,8 @@ export default function CandidateStatus() {
               <span>{formatTime(c.last_updated)}</span>
             </div>
 
-            {/* ✅ VIEW RESULT */}
-            {(c.status === "SUBMITTED" || c.status === "Test Completed") && (
+            {/* ✅ VIEW RESULT - Fixed to check for SUBMITTED status */}
+            {c.status === "SUBMITTED" && (
               <div style={{ marginTop: 14, textAlign: "right" }}>
                 <button
                   style={viewBtn}
@@ -69,7 +69,6 @@ function StatusBadge({ status }) {
     VERIFIED: { text: "Email Verified", color: "#2563eb" },
     STARTED: { text: "Test Started", color: "#f59e0b" },
     SUBMITTED: { text: "Test Completed", color: "#2e7d32" },
-    "Test Completed": { text: "Test Completed", color: "#2e7d32" },
     EXPIRED: { text: "Expired", color: "#c62828" },
   };
 
